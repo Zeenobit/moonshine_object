@@ -112,7 +112,7 @@ You can define as many casts as you want. Any object kind may be cast into any o
 
 ### Filters
 
-Like a standard [`Query`](https://bevyengine.org/docs/query/), you can filter `Objects` by passing a [`QueryFilter`](https://bevyengine.org/docs/query/#query-filter) to the `iter` method:
+Like a standard [`Query`](https://bevyengine.org/docs/query/), you can filter `Objects` by passing a [`QueryFilter`](https://bevyengine.org/docs/query/#query-filter):
 
 ```rust
 #[derive(Component)]
