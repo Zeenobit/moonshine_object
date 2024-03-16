@@ -6,11 +6,11 @@ use bevy_ecs::{
     query::{QueryData, QueryEntityError, QueryFilter, QueryItem},
     system::SystemParam,
 };
-use moonshine_kind::{prelude::*, Any};
+use moonshine_kind::{prelude::*, Any, CastInto};
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{safe_object_cast, AsObjectBase, CastObjectInto, Object, Objects};
+    pub use super::{AsObjectBase, Object, Objects};
 }
 
 #[derive(SystemParam)]
@@ -119,7 +119,7 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
 
     pub fn find_by_path(&self, path: &str) -> Option<Object<'w, 's, 'a>> {
         let tail: Vec<&str> = path.split('/').collect();
-        find_by_path(self.as_base(), &tail)
+        find_by_path(self.cast_into(), &tail)
     }
 
     pub fn root(&self) -> Object<'w, 's, 'a> {
@@ -161,12 +161,9 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             .map(|entity| self.rebind_as_base(entity))
     }
 
+    #[deprecated(note = "use `cast_into` instead")]
     pub fn as_base(&self) -> Object<'w, 's, 'a> {
-        Object {
-            instance: self.instance.cast_into(),
-            hierarchy: self.hierarchy,
-            name: self.name,
-        }
+        self.cast_into()
     }
 
     pub fn rebind(&self, instance: Instance<T>) -> Object<'w, 's, 'a, T> {
@@ -187,7 +184,7 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
 
     pub fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Object<'w, 's, 'a, U>
     where
-        T: CastObjectInto<'w, 's, 'a, U>,
+        T: CastInto<U>,
     {
         Object {
             instance,
@@ -211,9 +208,13 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
 
     pub fn cast_into<U: Kind>(self) -> Object<'w, 's, 'a, U>
     where
-        T: CastObjectInto<'w, 's, 'a, U>,
+        T: CastInto<U>,
     {
-        T::cast_object_into(self)
+        Object {
+            instance: self.instance.cast_into(),
+            hierarchy: self.hierarchy,
+            name: self.name,
+        }
     }
 
     /// # Safety
@@ -279,32 +280,8 @@ pub trait AsObjectBase {
 
 impl<T: Kind> AsObjectBase for Object<'_, '_, '_, T> {
     fn as_base(&self) -> Object<'_, '_, '_> {
-        self.as_base()
+        self.cast_into()
     }
-}
-
-/// # Safety
-/// Prefer to use the `safe_object_cast!` macro instead.
-pub unsafe trait CastObjectInto<'w, 's, 'a, T: Kind>: Kind {
-    fn cast_object_into(object: Object<'w, 's, 'a, Self>) -> Object<'w, 's, 'a, T>;
-}
-
-unsafe impl<'w, 's, 'a, T: Kind> CastObjectInto<'w, 's, 'a, Any> for T {
-    fn cast_object_into(object: Object<'w, 's, 'a, Self>) -> Object<'w, 's, 'a, Any> {
-        object.as_base()
-    }
-}
-
-#[macro_export]
-macro_rules! safe_object_cast {
-    ($t:ty => $u:ty) => {
-        unsafe impl<'w, 's, 'a> $crate::CastObjectInto<'w, 's, 'a, $u> for $t {
-            fn cast_object_into(object: Object<'w, 's, 'a, Self>) -> Object<'w, 's, 'a, $u> {
-                // SAFE: Because we said so!
-                unsafe { object.cast_into_unchecked() }
-            }
-        }
-    };
 }
 
 fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<Object<'w, 's, 'a>> {
