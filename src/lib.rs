@@ -45,7 +45,6 @@ where
         })
     }
 
-    #[must_use]
     pub fn instance(&self, instance: impl Into<Instance<T>>) -> Object<'w, 's, '_, T> {
         self.get(instance.into().entity()).unwrap()
     }
@@ -74,7 +73,6 @@ pub struct Object<'w, 's, 'a, T: Kind = Any> {
 impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     /// # Safety
     /// Assumes `base` is of kind `T`.
-    #[must_use]
     pub unsafe fn from_base_unchecked(base: Object<'w, 's, 'a>) -> Self {
         Self {
             instance: base.instance.cast_into_unchecked(),
@@ -83,17 +81,14 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
-    #[must_use]
     pub fn instance(&self) -> Instance<T> {
         self.instance
     }
 
-    #[must_use]
     pub fn entity(&self) -> Entity {
         self.instance.entity()
     }
 
-    #[must_use]
     pub fn name_or_default(&self) -> &str {
         self.name
             .get(self.entity())
@@ -101,45 +96,37 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             .unwrap_or_default()
     }
 
-    #[must_use]
     pub fn is_root(&self) -> bool {
         self.hierarchy.is_root(self.entity())
     }
 
-    #[must_use]
     pub fn is_parent(&self) -> bool {
         self.has_children()
     }
 
-    #[must_use]
     pub fn is_child(&self) -> bool {
         self.parent().is_some()
     }
 
-    #[must_use]
     pub fn has_children(&self) -> bool {
         self.children().peekable().peek().is_some()
     }
 
-    #[must_use]
     pub fn is_descendant_of(&self, entity: impl Into<Entity>) -> bool {
         self.hierarchy
             .is_descendant_of(self.entity(), entity.into())
     }
 
-    #[must_use]
     pub fn find_by_path(&self, path: &str) -> Option<Object<'w, 's, 'a>> {
         let tail: Vec<&str> = path.split('/').collect();
         find_by_path(self.as_base(), &tail)
     }
 
-    #[must_use]
     pub fn root(&self) -> Object<'w, 's, 'a> {
         let entity = self.hierarchy.root(self.entity());
         self.rebind_as_base(entity)
     }
 
-    #[must_use]
     pub fn parent(&self) -> Option<Object<'w, 's, 'a>> {
         self.hierarchy
             .parent(self.entity())
@@ -174,7 +161,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             .map(|entity| self.rebind_as_base(entity))
     }
 
-    #[must_use]
     pub fn as_base(&self) -> Object<'w, 's, 'a> {
         Object {
             instance: self.instance.cast_into(),
@@ -191,7 +177,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
-    #[must_use]
     pub fn rebind_as_base(&self, entity: Entity) -> Object<'w, 's, 'a> {
         Object {
             instance: entity.into(),
@@ -200,7 +185,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
-    #[must_use]
     pub fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Object<'w, 's, 'a, U>
     where
         T: CastObjectInto<'w, 's, 'a, U>,
@@ -214,7 +198,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
 
     /// # Safety
     /// Assumes `T` is also a valid instance of `U`.
-    #[must_use]
     pub unsafe fn rebind_as_unchecked<U: Kind>(
         &self,
         instance: Instance<U>,
@@ -245,7 +228,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
 }
 
 impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
-    #[must_use]
     pub fn from_base(world: &World, object: Object<'w, 's, 'a>) -> Option<Object<'w, 's, 'a, T>> {
         let entity = world.entity(object.entity());
         let instance = Instance::<T>::from_entity(entity)?;
