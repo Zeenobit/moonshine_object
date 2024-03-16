@@ -73,9 +73,13 @@ fn flap_wings(bird: Object<Bird>, commands: &mut Commands) {
 
 ### Casting
 
-Like `Instance<T>`, an `Object<T>` maybe be cast into an `Object<U>` if `T` implements `CastObjectInto<U>`. You may implement this trait for your own kinds using the `safe_object_cast` macro:
+Like `Instance<T>`, an `Object<T>` maybe be cast into an `Object<U>` if `T` implements `CastInto<U>`. You may implement this trait for your own kinds using the `safe_cast` macro.
 
 ```rust
+# use bevy::prelude::*;
+# use moonshine_kind::prelude::*;
+# use moonshine_object::prelude::*;
+
 // We expect every Bird to have a Creature component.
 #[derive(Bundle)]
 struct BirdBundle {
@@ -86,7 +90,7 @@ struct BirdBundle {
 }
 
 // Therefore, all birds may safely be assumed to be creatures:
-safe_object_cast!(Bird => Creature);
+safe_cast!(Bird => Creature);
 
 // Birds can chirp.
 fn chirp(bird: Object<Bird>) {
