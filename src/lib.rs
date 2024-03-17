@@ -123,25 +123,25 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     }
 
     pub fn root(&self) -> Object<'w, 's, 'a> {
-        self.rebind_entity(self.hierarchy.root(self.entity()))
+        self.rebind_base(self.hierarchy.root(self.entity()))
     }
 
     pub fn parent(&self) -> Option<Object<'w, 's, 'a>> {
         self.hierarchy
             .parent(self.entity())
-            .map(|entity| self.rebind_entity(entity))
+            .map(|entity| self.rebind_base(entity))
     }
 
     pub fn children(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         self.hierarchy
             .children(self.entity())
-            .map(|entity| self.rebind_entity(entity))
+            .map(|entity| self.rebind_base(entity))
     }
 
     pub fn ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         self.hierarchy
             .ancestors(self.entity())
-            .map(|entity| self.rebind_entity(entity))
+            .map(|entity| self.rebind_base(entity))
     }
 
     pub fn query_ancestors<Q: QueryData>(
@@ -157,7 +157,7 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     pub fn descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         self.hierarchy
             .descendants(self.entity())
-            .map(|entity| self.rebind_entity(entity))
+            .map(|entity| self.rebind_base(entity))
     }
 
     #[deprecated(note = "use `cast_into` instead")]
@@ -173,27 +173,15 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
-    pub fn rebind_entity(&self, entity: Entity) -> Object<'w, 's, 'a> {
-        self.rebind_cast(entity.into())
-    }
-
-    pub fn rebind_cast<U: Kind>(&self, instance: Instance<U>) -> Object<'w, 's, 'a, U>
-    where
-        T: CastInto<U>,
-    {
+    pub fn rebind_base(&self, entity: impl Into<Entity>) -> Object<'w, 's, 'a> {
         Object {
-            instance,
+            instance: Instance::from(entity.into()),
             hierarchy: self.hierarchy,
             name: self.name,
         }
     }
 
-    /// # Safety
-    /// Assumes `T` is also a valid instance of `U`.
-    pub unsafe fn rebind_cast_unchecked<U: Kind>(
-        &self,
-        instance: Instance<U>,
-    ) -> Object<'w, 's, 'a, U> {
+    pub fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Object<'w, 's, 'a, U> {
         Object {
             instance,
             hierarchy: self.hierarchy,
@@ -228,7 +216,7 @@ impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
         let entity = world.entity(object.entity());
         let instance = Instance::<T>::from_entity(entity)?;
         // SAFE: Entity was just checked to a valid instance of T.
-        Some(unsafe { object.rebind_cast_unchecked(instance) })
+        Some(object.rebind_as(instance))
     }
 }
 
@@ -293,7 +281,7 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
         if let Some(parent) = curr
             .hierarchy
             .parent(curr.entity())
-            .map(|parent| curr.rebind_entity(parent))
+            .map(|parent| curr.rebind_base(parent))
         {
             find_by_path(parent, tail)
         } else {
@@ -303,7 +291,7 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
         if let Some(child) = curr
             .hierarchy
             .children(curr.entity())
-            .map(|child| curr.rebind_entity(child))
+            .map(|child| curr.rebind_base(child))
             .next()
         {
             find_by_path(child, tail)
@@ -313,7 +301,7 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
     } else if let Some(child) = curr
         .hierarchy
         .children(curr.entity())
-        .map(|child| curr.rebind_entity(child))
+        .map(|child| curr.rebind_base(child))
         .find(|part| part.name_or_default() == head)
     {
         find_by_path(child, tail)
