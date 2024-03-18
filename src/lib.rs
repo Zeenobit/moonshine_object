@@ -89,6 +89,10 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         self.instance.entity()
     }
 
+    pub fn name(&self) -> Option<&str> {
+        self.name.get(self.entity()).ok().map(|name| name.as_str())
+    }
+
     pub fn name_or_default(&self) -> &str {
         self.name
             .get(self.entity())
