@@ -45,6 +45,16 @@ where
         })
     }
 
+    pub fn query<'a, Q: QueryData, G: QueryFilter>(
+        &'a self,
+        entity: Entity,
+        query: &'a Query<'w, 's, Q, G>,
+    ) -> Result<(Object<'w, 's, 'a, T>, QueryItem<'a, Q::ReadOnly>), QueryEntityError> {
+        let object = self.get(entity)?;
+        let data = query.get(entity)?;
+        Ok((object, data))
+    }
+
     pub fn instance(&self, instance: impl Into<Instance<T>>) -> Object<'w, 's, '_, T> {
         self.get(instance.into().entity()).unwrap()
     }
