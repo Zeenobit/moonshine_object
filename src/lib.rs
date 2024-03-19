@@ -6,11 +6,12 @@ use bevy_ecs::{
     query::{QueryData, QueryEntityError, QueryFilter, QueryItem},
     system::SystemParam,
 };
+use bevy_hierarchy::prelude::*;
 use moonshine_kind::{prelude::*, Any, CastInto};
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{AsObjectBase, Object, Objects};
+    pub use super::{AsObjectBase, Object, Objects, RootObjects};
 }
 
 #[derive(SystemParam)]
@@ -72,6 +73,8 @@ where
         }
     }
 }
+
+pub type RootObjects<'w, 's, T, F> = Objects<'w, 's, T, (Without<Parent>, F)>;
 
 /// Represents an [`Entity`] of [`Kind`] `T` with [`HierarchyQuery`] and [`Name`] information.
 pub struct Object<'w, 's, 'a, T: Kind = Any> {

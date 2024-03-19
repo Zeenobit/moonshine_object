@@ -11,6 +11,7 @@ repository = "https://github.com/Zeenobit/moonshine_object"
 
 [dependencies]
 bevy_ecs = "0.13.*"
+bevy_hierarchy = "0.13.*"
 bevy_core = "0.13.*"
 moonshine-kind = { version = "0.1.*", path = "../kind" }
 moonshine-util = { version = "0.2.*", path = "../util" }
