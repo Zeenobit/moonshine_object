@@ -333,7 +333,7 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
-    fn find_by_path_self() {
+    fn find_by_path() {
         let mut w = World::new();
 
         //     A
