@@ -331,7 +331,6 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
 mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
-    use bevy::prelude::*;
 
     #[test]
     fn find_by_path_self() {
