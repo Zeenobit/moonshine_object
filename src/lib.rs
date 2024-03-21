@@ -7,12 +7,14 @@ use bevy_ecs::{
     system::SystemParam,
 };
 use bevy_hierarchy::prelude::*;
-use moonshine_kind::{prelude::*, Any, CastInto};
+use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
     pub use super::{AsObjectBase, Object, Objects, RootObjects};
 }
+
+pub use moonshine_kind::{Any, CastInto, Kind};
 
 #[derive(SystemParam)]
 pub struct Objects<'w, 's, T = Any, F = ()>
