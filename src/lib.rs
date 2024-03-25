@@ -127,6 +127,10 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         self.parent().is_some()
     }
 
+    pub fn is_child_of(&self, entity: impl Into<Entity>) -> bool {
+        self.hierarchy.is_child_of(self.entity(), entity.into())
+    }
+
     pub fn has_children(&self) -> bool {
         self.children().peekable().peek().is_some()
     }
