@@ -140,8 +140,8 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             .is_descendant_of(self.entity(), entity.into())
     }
 
-    pub fn find_by_path(&self, path: &str) -> Option<Object<'w, 's, 'a>> {
-        let tail: Vec<&str> = path.split('/').collect();
+    pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<Object<'w, 's, 'a>> {
+        let tail: Vec<&str> = path.as_ref().split('/').collect();
         find_by_path(self.cast_into(), &tail)
     }
 
