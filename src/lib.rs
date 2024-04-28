@@ -311,16 +311,13 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
             None
         }
     } else if head == "*" {
-        if let Some(child) = curr
-            .hierarchy
-            .children(curr.entity())
-            .map(|child| curr.rebind_base(child))
-            .next()
-        {
-            find_by_path(child, tail)
-        } else {
-            None
+        for child in curr.hierarchy.children(curr.entity()) {
+            let child = curr.rebind_base(child);
+            if let Some(result) = find_by_path(child, tail) {
+                return Some(result);
+            }
         }
+        return None;
     } else if let Some(child) = curr
         .hierarchy
         .children(curr.entity())
@@ -400,6 +397,26 @@ mod tests {
                 .get(a)
                 .unwrap()
                 .find_by_path("B/*")
+                .unwrap()
+                .entity();
+            assert_eq!(c, x);
+        });
+
+        w.run_system_once(move |objects: Objects| {
+            let x = objects
+                .get(a)
+                .unwrap()
+                .find_by_path("*/D")
+                .unwrap()
+                .entity();
+            assert_eq!(d, x);
+        });
+
+        w.run_system_once(move |objects: Objects| {
+            let x = objects
+                .get(a)
+                .unwrap()
+                .find_by_path("*/*")
                 .unwrap()
                 .entity();
             assert_eq!(c, x);
