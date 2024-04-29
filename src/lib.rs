@@ -161,6 +161,10 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             .map(|entity| self.rebind_base(entity))
     }
 
+    pub fn self_and_ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
+        std::iter::once(self.cast_into()).chain(self.ancestors())
+    }
+
     pub fn ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         self.hierarchy
             .ancestors(self.entity())
@@ -175,6 +179,10 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             let entity = object.entity();
             query.get(entity).ok()
         })
+    }
+
+    pub fn self_and_descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
+        std::iter::once(self.cast_into()).chain(self.descendants())
     }
 
     pub fn descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
