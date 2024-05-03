@@ -10,7 +10,7 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{AsObjectBase, Object, Objects};
+    pub use super::{Object, Objects};
 }
 
 pub use moonshine_kind::{Any, CastInto, Kind};
@@ -228,6 +228,10 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
+    pub fn as_any(&self) -> Object<'_, '_, '_> {
+        self.cast_into()
+    }
+
     /// # Safety
     /// Assumes `T` is also a valid instance of `U`.
     pub unsafe fn cast_into_unchecked<U: Kind>(self) -> Object<'w, 's, 'a, U> {
@@ -282,16 +286,6 @@ impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
             .field(&self.entity())
             .field(&self.name_or_default())
             .finish()
-    }
-}
-
-pub trait AsObjectBase {
-    fn as_base(&self) -> Object<'_, '_, '_>;
-}
-
-impl<T: Kind> AsObjectBase for Object<'_, '_, '_, T> {
-    fn as_base(&self) -> Object<'_, '_, '_> {
-        self.cast_into()
     }
 }
 
