@@ -6,7 +6,6 @@ use bevy_ecs::{
     query::{QueryData, QueryEntityError, QueryFilter, QueryItem},
     system::SystemParam,
 };
-use bevy_hierarchy::prelude::*;
 use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
@@ -339,7 +338,8 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::system::RunSystemOnce;
+
+    use bevy::{ecs::system::RunSystemOnce, prelude::*};
 
     #[test]
     fn find_by_path() {
