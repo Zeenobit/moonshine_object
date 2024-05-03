@@ -15,13 +15,14 @@ pub mod prelude {
 
 pub use moonshine_kind::{Any, CastInto, Kind};
 
+/// A [`SystemParam`] similar to [`Query`] which provides [`Object<T>`] access for its items.
 #[derive(SystemParam)]
 pub struct Objects<'w, 's, T = Any, F = ()>
 where
     T: Kind,
     F: 'static + QueryFilter,
 {
-    pub instances: Query<'w, 's, Instance<T>, F>,
+    pub instance: Query<'w, 's, Instance<T>, F>,
     pub hierarchy: HierarchyQuery<'w, 's>,
     pub name: Query<'w, 's, &'static Name>,
 }
@@ -31,51 +32,34 @@ where
     T: Kind,
     F: 'static + QueryFilter,
 {
+    /// Iterates over all [`Object`]s of [`Kind`] `T` which match the [`QueryFilter`] `F`.
     pub fn iter(&self) -> impl Iterator<Item = Object<'w, 's, '_, T>> {
-        self.instances.iter().map(|instance| Object {
+        self.instance.iter().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
             name: &self.name,
         })
     }
 
+    /// Gets the [`Object`] of [`Kind`] `T` from an [`Entity`], if it matches.
     pub fn get(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
-        self.instances.get(entity).map(|instance| Object {
+        self.instance.get(entity).map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
             name: &self.name,
         })
     }
 
-    pub fn query<'a, Q: QueryData, G: QueryFilter>(
-        &'a self,
-        entity: Entity,
-        query: &'a Query<'w, 's, Q, G>,
-    ) -> Result<(Object<'w, 's, 'a, T>, QueryItem<'a, Q::ReadOnly>), QueryEntityError> {
-        let object = self.get(entity)?;
-        let data = query.get(entity)?;
-        Ok((object, data))
-    }
-
-    pub fn instance(&self, instance: impl Into<Instance<T>>) -> Object<'w, 's, '_, T> {
-        self.get(instance.into().entity()).unwrap()
-    }
-
-    pub fn spawn(
-        &self,
-        commands: &mut Commands,
-        bundle: impl KindBundle<Kind = T>,
-    ) -> Object<'w, 's, '_, T> {
-        let instance = commands.spawn_instance(bundle);
-        Object {
-            instance: instance.into(),
-            hierarchy: &self.hierarchy,
-            name: &self.name,
-        }
+    /// Gets the [`Object`] of [`Kind`] `T` from an [`Instance`].
+    ///
+    /// # Safety
+    /// Assumes `instance` is a valid [`Instance`] of [`Kind`] `T`.
+    pub fn instance(&self, instance: Instance<T>) -> Object<'w, 's, '_, T> {
+        self.get(instance.entity()).expect("instance must be valid")
     }
 }
 
-/// Represents an [`Entity`] of [`Kind`] `T` with [`HierarchyQuery`] and [`Name`] information.
+/// Represents an [`Entity`] of [`Kind`] `T` with hierarchy and name information.
 pub struct Object<'w, 's, 'a, T: Kind = Any> {
     instance: Instance<T>,
     hierarchy: &'a HierarchyQuery<'w, 's>,
@@ -83,8 +67,12 @@ pub struct Object<'w, 's, 'a, T: Kind = Any> {
 }
 
 impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
+    /// Creates a new [`Object<T>`] from an [`Object<Any>`].
+    ///
+    /// This is semantically equivalent to an unsafe downcast.
+    ///
     /// # Safety
-    /// Assumes `base` is of kind `T`.
+    /// Assumes `base` is of [`Kind`] `T`.
     pub unsafe fn from_base_unchecked(base: Object<'w, 's, 'a>) -> Self {
         Self {
             instance: base.instance.cast_into_unchecked(),
@@ -93,23 +81,27 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
+    /// Returns this object as an [`Instance<T>`].
     pub fn instance(&self) -> Instance<T> {
         self.instance
     }
 
+    /// Returns this object as an [`Entity`].
     pub fn entity(&self) -> Entity {
         self.instance.entity()
     }
 
+    /// Returns the [`Name`] of this object.
     pub fn name(&self) -> Option<&str> {
         self.name.get(self.entity()).ok().map(|name| name.as_str())
     }
 
-    pub fn name_or_default(&self) -> &str {
+    /// Returns the [`Name`] of this object if it has one, or a given default string otherwise.
+    pub fn name_or_default(&self, default: &'a str) -> &'a str {
         self.name
             .get(self.entity())
             .map(|name| name.as_str())
-            .unwrap_or_default()
+            .unwrap_or(default)
     }
 
     pub fn is_root(&self) -> bool {
@@ -282,10 +274,12 @@ impl<T: Kind> Eq for Object<'_, '_, '_, T> {}
 
 impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple(&T::debug_name())
-            .field(&self.entity())
-            .field(&self.name_or_default())
-            .finish()
+        let mut out = f.debug_tuple(&T::debug_name());
+        out.field(&self.entity());
+        if let Some(name) = self.name() {
+            out.field(&name);
+        }
+        out.finish()
     }
 }
 
@@ -321,7 +315,7 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
         .hierarchy
         .children(curr.entity())
         .map(|child| curr.rebind_base(child))
-        .find(|part| part.name_or_default() == head)
+        .find(|part| part.name().is_some_and(|name| name == head))
     {
         find_by_path(child, tail)
     } else {
