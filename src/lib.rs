@@ -11,7 +11,7 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{AsObjectBase, Object, Objects, RootObjects};
+    pub use super::{AsObjectBase, Object, Objects};
 }
 
 pub use moonshine_kind::{Any, CastInto, Kind};
@@ -75,8 +75,6 @@ where
         }
     }
 }
-
-pub type RootObjects<'w, 's, T, F> = Objects<'w, 's, T, (Without<Parent>, F)>;
 
 /// Represents an [`Entity`] of [`Kind`] `T` with [`HierarchyQuery`] and [`Name`] information.
 pub struct Object<'w, 's, 'a, T: Kind = Any> {
