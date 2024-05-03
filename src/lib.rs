@@ -104,62 +104,93 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             .unwrap_or(default)
     }
 
+    /// Returns true if this object has no parent.
     pub fn is_root(&self) -> bool {
         self.hierarchy.is_root(self.entity())
     }
 
+    #[deprecated(note = "use `has_children` instead")]
     pub fn is_parent(&self) -> bool {
         self.has_children()
     }
 
+    /// Returns true if this object has a parent.
     pub fn is_child(&self) -> bool {
         self.parent().is_some()
     }
 
-    pub fn is_child_of(&self, entity: impl Into<Entity>) -> bool {
-        self.hierarchy.is_child_of(self.entity(), entity.into())
+    /// Returns true if this object is a child of the given `parent` [`Entity`].
+    pub fn is_child_of(&self, parent: Entity) -> bool {
+        self.hierarchy.is_child_of(self.entity(), parent)
     }
 
+    /// Returns true if this object has some children.
     pub fn has_children(&self) -> bool {
-        self.children().peekable().peek().is_some()
+        self.hierarchy.has_children(self.entity())
     }
 
-    pub fn is_descendant_of(&self, entity: impl Into<Entity>) -> bool {
-        self.hierarchy
-            .is_descendant_of(self.entity(), entity.into())
+    /// Returns true if this object is a descendant of the given `ancestor` [`Entity`].
+    pub fn is_descendant_of(&self, ancestor: Entity) -> bool {
+        self.hierarchy.is_descendant_of(self.entity(), ancestor)
     }
 
+    /// Attempts to find an object by its path, relative to this one.
+    ///
+    /// # Usage
+    ///
+    /// An **Object Path** is a string of object names separated by slashes which represents
+    /// the path to an object within a hierarchy.
+    ///
+    /// In additional to object names, the path may contain the following special characters:
+    ///   - `.` represents this object.
+    ///   - `..` represents the parent object.
+    ///   - `*` represents any child object.
+    ///
+    /// Note that this method of object search is relatively slow, and should be reserved for
+    /// when performance is not the top priority, such as during initialization or prototyping.
+    ///
+    /// Instead, prefer to use [`Component`] to tag your entities and [`Query`] them instead, if possible.
+    ///
+    /// # Safety
+    /// This method is somewhat experimental with plans for future expansion.
+    /// Please [report](https://github.com/Zeenobit/moonshine_object/issues) any bugs you encounter or features you'd like.
     pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<Object<'w, 's, 'a>> {
         let tail: Vec<&str> = path.as_ref().split('/').collect();
         find_by_path(self.cast_into(), &tail)
     }
 
+    /// Returns the root of this object's hierarchy.
     pub fn root(&self) -> Object<'w, 's, 'a> {
-        self.rebind_base(self.hierarchy.root(self.entity()))
+        self.rebind_any(self.hierarchy.root(self.entity()))
     }
 
+    /// Returns the parent of this object.
     pub fn parent(&self) -> Option<Object<'w, 's, 'a>> {
         self.hierarchy
             .parent(self.entity())
-            .map(|entity| self.rebind_base(entity))
+            .map(|entity| self.rebind_any(entity))
     }
 
+    /// Iterates over all children of this object.
     pub fn children(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         self.hierarchy
             .children(self.entity())
-            .map(|entity| self.rebind_base(entity))
+            .map(|entity| self.rebind_any(entity))
     }
 
+    /// Iterates over this object in addition to all its ancestors.
     pub fn self_and_ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         std::iter::once(self.cast_into()).chain(self.ancestors())
     }
 
+    /// Iterates over all ancestors of this object.
     pub fn ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         self.hierarchy
             .ancestors(self.entity())
-            .map(|entity| self.rebind_base(entity))
+            .map(|entity| self.rebind_any(entity))
     }
 
+    /// Queries all ancestors of this object with a given [`Query`].
     pub fn query_ancestors<Q: QueryData>(
         &'a self,
         query: &'a Query<'w, 's, Q>,
@@ -170,21 +201,33 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         })
     }
 
+    /// Iterates over this object in addition to all its descendants.
     pub fn self_and_descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         std::iter::once(self.cast_into()).chain(self.descendants())
     }
 
+    /// Iterates over all descendants of this object.
     pub fn descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         self.hierarchy
             .descendants(self.entity())
-            .map(|entity| self.rebind_base(entity))
+            .map(|entity| self.rebind_any(entity))
     }
 
-    #[deprecated(note = "use `cast_into` instead")]
-    pub fn as_base(&self) -> Object<'w, 's, 'a> {
-        self.cast_into()
+    /// Queries all descendants of this object with a given [`Query`].
+    pub fn query_descendants<Q: QueryData>(
+        &'a self,
+        query: &'a Query<'w, 's, Q>,
+    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
+        self.descendants().filter_map(move |object| {
+            let entity = object.entity();
+            query.get(entity).ok()
+        })
     }
 
+    /// Uses this object to create a new [`Object`] which references the given `instance` of the same [`Kind`].
+    ///
+    /// This function is useful when you already have an [`Object<T>`] and another [`Instance<T>`].
+    /// It gives you type-safe object access to the other instance.
     pub fn rebind(&self, instance: Instance<T>) -> Object<'w, 's, 'a, T> {
         Object {
             instance,
@@ -193,14 +236,24 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
-    pub fn rebind_base(&self, entity: impl Into<Entity>) -> Object<'w, 's, 'a> {
+    /// Uses this object to create a new [`Object`] which references the given [`Entity`].
+    ///
+    /// This function is useful when you already have an [`Object<T>`] and another [`Entity`].
+    /// It gives you generic object access to the other entity.
+    pub fn rebind_any(&self, entity: Entity) -> Object<'w, 's, 'a> {
         Object {
-            instance: Instance::from(entity.into()),
+            instance: Instance::from(entity),
             hierarchy: self.hierarchy,
             name: self.name,
         }
     }
 
+    /// Uses this object to create a new [`Object`] which references the given `instance` of a different [`Kind`].
+    ///
+    /// This function is useful when you already have an [`Object<T>`] and another [`Instance<U>`].
+    /// It gives you type-safe object access to the other instance.
+    ///
+    /// Note that this function assumes the given instance is a valid instance of the given kind.
     pub fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Object<'w, 's, 'a, U> {
         Object {
             instance,
@@ -209,6 +262,9 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
+    /// Safety casts this object into another [`Kind`].
+    ///
+    /// See [`CastInto`] for more information.
     pub fn cast_into<U: Kind>(self) -> Object<'w, 's, 'a, U>
     where
         T: CastInto<U>,
@@ -220,12 +276,17 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
+    /// Returns this object as an [`Object<Any>`].
     pub fn as_any(&self) -> Object<'_, '_, '_> {
         self.cast_into()
     }
 
+    /// Casts this object into another [`Kind`] without any safety checks.
+    ///
+    /// This is semantically equivalent to a raw C-style cast.
+    ///
     /// # Safety
-    /// Assumes `T` is also a valid instance of `U`.
+    /// Assumes any instance of kind `T` is also a valid instance of kind `U`.
     pub unsafe fn cast_into_unchecked<U: Kind>(self) -> Object<'w, 's, 'a, U> {
         Object {
             instance: self.instance.cast_into_unchecked(),
@@ -297,7 +358,7 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
         if let Some(parent) = curr
             .hierarchy
             .parent(curr.entity())
-            .map(|parent| curr.rebind_base(parent))
+            .map(|parent| curr.rebind_any(parent))
         {
             find_by_path(parent, tail)
         } else {
@@ -305,7 +366,7 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
         }
     } else if head == "*" {
         for child in curr.hierarchy.children(curr.entity()) {
-            let child = curr.rebind_base(child);
+            let child = curr.rebind_any(child);
             if let Some(result) = find_by_path(child, tail) {
                 return Some(result);
             }
@@ -314,7 +375,7 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
     } else if let Some(child) = curr
         .hierarchy
         .children(curr.entity())
-        .map(|child| curr.rebind_base(child))
+        .map(|child| curr.rebind_any(child))
         .find(|part| part.name().is_some_and(|name| name == head))
     {
         find_by_path(child, tail)
