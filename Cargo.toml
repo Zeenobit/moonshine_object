@@ -1,6 +1,6 @@
 [package]
 name = "moonshine-object"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 description = "Bevy Entities are good. Objects are better!"
