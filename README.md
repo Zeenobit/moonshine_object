@@ -1,8 +1,10 @@
 # 🌴 Moonshine Object
 
 [![crates.io](https://img.shields.io/crates/v/moonshine-object)](https://crates.io/crates/moonshine-object)
+[![downloads](https://img.shields.io/crates/dr/moonshine-object?label=downloads)](https://crates.io/crates/moonshine-object)
 [![docs.rs](https://docs.rs/moonshine-object/badge.svg)](https://docs.rs/moonshine-object)
 [![license](https://img.shields.io/crates/l/moonshine-object)](https://github.com/Zeenobit/moonshine_object/blob/main/LICENSE)
+[![stars](https://img.shields.io/github/stars/Zeenobit/moonshine_object)](https://github.com/Zeenobit/moonshine_object)
 
 An extension to [Bevy](https://bevyengine.org) which provides an ergonomic interface for managing complex [`Entity`] hierarchies.
 
@@ -203,6 +205,12 @@ fn handle_hunger(bird: Object<Bird>) {
 ```
 
 Any [`Object<T>`] is safely convertible to [`Object<Any>`][`Object`].
+
+## Support
+
+Please [post an issue](https://github.com/Zeenobit/moonshine_object/issues/new) for any bugs, questions, or suggestions.
+
+You may also contact me on the official [Bevy Discord](https://discord.gg/bevy) server as **@Zeenobit**.
 
 [`Entity`]:https://docs.rs/bevy/latest/bevy/ecs/entity/struct.Entity.html
 [`Component`]:https://docs.rs/bevy/latest/bevy/ecs/component/trait.Component.html
