@@ -98,14 +98,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         self.name.get(self.entity()).ok().map(|name| name.as_str())
     }
 
-    /// Returns the [`Name`] of this object if it has one, or a given default string otherwise.
-    pub fn name_or_default(&self, default: &'a str) -> &'a str {
-        self.name
-            .get(self.entity())
-            .map(|name| name.as_str())
-            .unwrap_or(default)
-    }
-
     /// Returns true if this object has no parent.
     pub fn is_root(&self) -> bool {
         self.hierarchy.is_root(self.entity())
