@@ -5,7 +5,7 @@ use std::fmt;
 use bevy_core::Name;
 use bevy_ecs::{
     prelude::*,
-    query::{QueryData, QueryEntityError, QueryFilter, QueryItem},
+    query::{QueryData, QueryEntityError, QueryFilter, QueryItem, QuerySingleError},
     system::SystemParam,
 };
 use moonshine_kind::prelude::*;
@@ -46,6 +46,14 @@ where
     /// Gets the [`Object`] of [`Kind`] `T` from an [`Entity`], if it matches.
     pub fn get(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
         self.instance.get(entity).map(|instance| Object {
+            instance,
+            hierarchy: &self.hierarchy,
+            name: &self.name,
+        })
+    }
+
+    pub fn get_single(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
+        self.instance.get_single().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
             name: &self.name,
