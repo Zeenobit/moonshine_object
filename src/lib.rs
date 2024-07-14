@@ -193,9 +193,9 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     }
 
     /// Queries all ancestors of this object with a given [`Query`].
-    pub fn query_ancestors<Q: QueryData>(
+    pub fn query_ancestors<Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'a Query<'w, 's, Q>,
+        query: &'a Query<'w, 's, Q, F>,
     ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
         self.ancestors().filter_map(move |object| {
             let entity = object.entity();
