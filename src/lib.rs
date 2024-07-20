@@ -178,7 +178,7 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     /// Please [report](https://github.com/Zeenobit/moonshine_object/issues) any bugs you encounter or features you'd like.
     pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<Object<'w, 's, 'a>> {
         let tail: Vec<&str> = path.as_ref().split('/').collect();
-        find_by_path(self.cast_into(), &tail)
+        find_by_path(self.cast_into_any(), &tail)
     }
 
     /// Returns the root of this object's hierarchy.
@@ -202,7 +202,7 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
 
     /// Iterates over this object in addition to all its ancestors.
     pub fn self_and_ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
-        std::iter::once(self.cast_into()).chain(self.ancestors())
+        std::iter::once(self.cast_into_any()).chain(self.ancestors())
     }
 
     /// Iterates over all ancestors of this object.
@@ -225,7 +225,7 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
 
     /// Iterates over this object in addition to all its descendants.
     pub fn self_and_descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
-        std::iter::once(self.cast_into()).chain(self.descendants())
+        std::iter::once(self.cast_into_any()).chain(self.descendants())
     }
 
     /// Iterates over all descendants of this object.
@@ -299,8 +299,12 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     }
 
     /// Returns this object as an [`Object<Any>`].
-    pub fn as_any(&self) -> Object<'_, '_, '_> {
-        self.cast_into()
+    pub fn cast_into_any(self) -> Object<'w, 's, 'a> {
+        Object {
+            instance: self.instance.cast_into_any(),
+            hierarchy: self.hierarchy,
+            name: self.name,
+        }
     }
 
     /// Casts this object into another [`Kind`] without any safety checks.
@@ -541,7 +545,7 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     }
 
     pub fn as_any(&self) -> ObjectRef<'_, '_, '_> {
-        ObjectRef(self.0, self.1.as_any())
+        ObjectRef(self.0, self.1.cast_into_any())
     }
 
     /// Casts this object into another [`Kind`] without any safety checks.
