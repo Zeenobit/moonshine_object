@@ -404,15 +404,23 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
 
 pub struct ObjectRef<'w, 's, 'a, T: Kind = Any>(EntityRef<'a>, Object<'w, 's, 'a, T>);
 
-impl<'a, T: Kind> Deref for ObjectRef<'_, '_, 'a, T> {
-    type Target = EntityRef<'a>;
+impl<T: Component> Deref for ObjectRef<'_, '_, '_, T> {
+    type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.get::<T>().unwrap()
     }
 }
 
 impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
+    pub fn get<U: Component>(&self) -> Option<&U> {
+        self.0.get::<U>()
+    }
+
+    pub fn contains<U: Component>(&self) -> bool {
+        self.0.contains::<U>()
+    }
+
     /// Creates a new [`ObjectRef<T>`] from an [`ObjectRef<Any>`].
     ///
     /// This is semantically equivalent to an unsafe downcast.
