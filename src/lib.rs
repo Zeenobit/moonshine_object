@@ -43,6 +43,10 @@ where
         })
     }
 
+    pub fn contains(&self, entity: Entity) -> bool {
+        self.instance.contains(entity)
+    }
+
     pub fn iter_ref<'a>(
         &'a self,
         world: &'a World,
