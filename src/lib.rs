@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-use std::fmt;
+use std::{fmt, ops::Deref};
 
 use bevy_core::Name;
 use bevy_ecs::{
@@ -52,12 +52,20 @@ where
         })
     }
 
+    pub fn get_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T>> {
+        Some(ObjectRef(entity, self.get(entity.id()).ok()?))
+    }
+
     pub fn get_single(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
         self.instance.get_single().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
             name: &self.name,
         })
+    }
+
+    pub fn get_single_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T>> {
+        Some(ObjectRef(entity, self.get_single().ok()?))
     }
 
     /// Gets the [`Object`] of [`Kind`] `T` from an [`Instance`].
@@ -386,6 +394,147 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
     }
 }
 
+pub struct ObjectRef<'w, 's, 'a, T: Kind = Any>(EntityRef<'a>, Object<'w, 's, 'a, T>);
+
+impl<'a, T: Kind> Deref for ObjectRef<'_, '_, 'a, T> {
+    type Target = EntityRef<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
+    /// Creates a new [`ObjectRef<T>`] from an [`ObjectRef<Any>`].
+    ///
+    /// This is semantically equivalent to an unsafe downcast.
+    ///
+    /// # Safety
+    /// Assumes `base` is of [`Kind`] `T`.
+    pub unsafe fn from_base_unchecked(base: ObjectRef<'w, 's, 'a>) -> Self {
+        Self(base.0, Object::from_base_unchecked(base.1))
+    }
+
+    pub fn instance(&self) -> Instance<T> {
+        self.1.instance()
+    }
+
+    pub fn entity(&self) -> Entity {
+        self.1.entity()
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        self.1.name()
+    }
+
+    pub fn is_root(&self) -> bool {
+        self.1.is_root()
+    }
+
+    pub fn is_child(&self) -> bool {
+        self.parent().is_some()
+    }
+
+    pub fn is_child_of(&self, parent: Entity) -> bool {
+        self.1.is_child_of(parent)
+    }
+
+    pub fn has_children(&self) -> bool {
+        self.1.has_children()
+    }
+
+    pub fn is_descendant_of(&self, ancestor: Entity) -> bool {
+        self.1.is_descendant_of(ancestor)
+    }
+
+    pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<ObjectRef<'w, 's, 'a>> {
+        self.1
+            .find_by_path(path)
+            .map(|object| ObjectRef(self.0, object))
+    }
+
+    pub fn root(&self) -> ObjectRef<'w, 's, 'a> {
+        ObjectRef(self.0, self.1.root())
+    }
+
+    pub fn parent(&self) -> Option<ObjectRef<'w, 's, 'a>> {
+        self.1.parent().map(|object| ObjectRef(self.0, object))
+    }
+
+    pub fn children(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
+        self.1
+            .children()
+            .map(move |object| ObjectRef(self.0, object))
+    }
+
+    pub fn self_and_ancestors(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
+        self.1
+            .self_and_ancestors()
+            .map(|object| ObjectRef(self.0, object))
+    }
+
+    pub fn ancestors(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
+        self.1.ancestors().map(|object| ObjectRef(self.0, object))
+    }
+
+    pub fn query_ancestors<Q: QueryData, F: QueryFilter>(
+        &'a self,
+        query: &'a Query<'w, 's, Q, F>,
+    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
+        self.1.query_ancestors(query)
+    }
+
+    pub fn self_and_descendants(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
+        self.1
+            .self_and_descendants()
+            .map(|object| ObjectRef(self.0, object))
+    }
+
+    pub fn descendants(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
+        self.1.descendants().map(|object| ObjectRef(self.0, object))
+    }
+
+    pub fn query_descendants<Q: QueryData>(
+        &'a self,
+        query: &'a Query<'w, 's, Q>,
+    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
+        self.1.query_descendants(query)
+    }
+
+    pub fn rebind(&self, instance: Instance<T>) -> ObjectRef<'w, 's, 'a, T> {
+        ObjectRef(self.0, self.1.rebind(instance))
+    }
+
+    pub fn rebind_any(&self, entity: Entity) -> ObjectRef<'w, 's, 'a> {
+        ObjectRef(self.0, self.1.rebind_any(entity))
+    }
+
+    pub fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> ObjectRef<'w, 's, 'a, U> {
+        ObjectRef(self.0, self.1.rebind_as(instance))
+    }
+
+    pub fn cast_into<U: Kind>(self) -> ObjectRef<'w, 's, 'a, U>
+    where
+        T: CastInto<U>,
+    {
+        ObjectRef(self.0, self.1.cast_into())
+    }
+
+    pub fn as_any(&self) -> ObjectRef<'_, '_, '_> {
+        ObjectRef(self.0, self.1.as_any())
+    }
+
+    /// Casts this object into another [`Kind`] without any safety checks.
+    ///
+    /// This is semantically equivalent to a raw C-style cast.
+    ///
+    /// # Safety
+    /// Assumes any instance of kind `T` is also a valid instance of kind `U`.
+    pub unsafe fn cast_into_unchecked<U: Kind>(self) -> ObjectRef<'w, 's, 'a, U> {
+        ObjectRef(self.0, self.1.cast_into_unchecked())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -508,5 +657,23 @@ mod tests {
                 .entity();
             assert_eq!(c, x);
         });
+    }
+
+    #[test]
+    fn object_ref() {
+        #[derive(Component)]
+        struct T;
+
+        let mut w = World::new();
+        let entity = w.spawn(T).id();
+
+        assert!(
+            w.run_system_once(move |world: &World, objects: Objects<T>| {
+                objects
+                    .get_single_ref(world.entity(entity))
+                    .unwrap()
+                    .contains::<T>()
+            })
+        );
     }
 }
