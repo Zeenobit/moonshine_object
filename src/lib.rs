@@ -12,7 +12,7 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{Object, Objects};
+    pub use super::{Object, ObjectRef, Objects};
 }
 
 pub use moonshine_kind::{Any, CastInto, Kind};
