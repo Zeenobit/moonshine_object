@@ -43,6 +43,14 @@ where
         })
     }
 
+    pub fn iter_ref<'a>(
+        &'a self,
+        world: &'a World,
+    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, T>> {
+        self.iter()
+            .map(|object| ObjectRef(world.entity(object.entity()), object))
+    }
+
     /// Gets the [`Object`] of [`Kind`] `T` from an [`Entity`], if it matches.
     pub fn get(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
         self.instance.get(entity).map(|instance| Object {
@@ -532,6 +540,40 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     /// Assumes any instance of kind `T` is also a valid instance of kind `U`.
     pub unsafe fn cast_into_unchecked<U: Kind>(self) -> ObjectRef<'w, 's, 'a, U> {
         ObjectRef(self.0, self.1.cast_into_unchecked())
+    }
+}
+
+impl<T: Kind> Clone for ObjectRef<'_, '_, '_, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Kind> Copy for ObjectRef<'_, '_, '_, T> {}
+
+impl<T: Kind> From<ObjectRef<'_, '_, '_, T>> for Entity {
+    fn from(object: ObjectRef<'_, '_, '_, T>) -> Self {
+        object.entity()
+    }
+}
+
+impl<T: Kind> From<ObjectRef<'_, '_, '_, T>> for Instance<T> {
+    fn from(object: ObjectRef<'_, '_, '_, T>) -> Self {
+        object.instance()
+    }
+}
+
+impl<T: Kind> PartialEq for ObjectRef<'_, '_, '_, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.1 == other.1
+    }
+}
+
+impl<T: Kind> Eq for ObjectRef<'_, '_, '_, T> {}
+
+impl<T: Kind> fmt::Debug for ObjectRef<'_, '_, '_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.1.fmt(f)
     }
 }
 
