@@ -13,7 +13,7 @@ pub trait ObjectInstance<T: Kind = Any> {
     ///
     /// let mut app = App::new();
     /// // ...
-    /// app.add_system(Update, print_instances);
+    /// app.add_systems(Update, print_instances);
     ///
     /// fn print_instances(objects: Objects) {
     ///     for object in objects.iter() {
