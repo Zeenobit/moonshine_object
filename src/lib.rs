@@ -12,7 +12,7 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{Object, ObjectRef, Objects};
+    pub use super::{Object, ObjectHierarchy, ObjectRef, Objects};
 }
 
 pub use moonshine_kind::{Any, CastInto, Kind};
@@ -89,6 +89,54 @@ where
     }
 }
 
+pub trait ObjectHierarchy {
+    type Rebind<U: Kind>;
+
+    fn parent(&self) -> Option<Self::Rebind<Any>>;
+
+    fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
+    fn is_root(&self) -> bool {
+        self.parent().is_none()
+    }
+
+    fn is_child(&self) -> bool {
+        self.parent().is_some()
+    }
+
+    fn has_children(&self) -> bool {
+        self.children().next().is_some()
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectHierarchy for Object<'w, 's, 'a, T> {
+    type Rebind<U: Kind> = Object<'w, 's, 'a, U>;
+
+    fn parent(&self) -> Option<Self::Rebind<Any>> {
+        self.hierarchy
+            .parent(self.entity())
+            .map(|entity| self.rebind_any(entity))
+    }
+
+    fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.hierarchy
+            .children(self.entity())
+            .map(|entity| self.rebind_any(entity))
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectHierarchy for ObjectRef<'w, 's, 'a, T> {
+    type Rebind<U: Kind> = ObjectRef<'w, 's, 'a, U>;
+
+    fn parent(&self) -> Option<Self::Rebind<Any>> {
+        self.1.parent().map(|object| ObjectRef(self.0, object))
+    }
+
+    fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.1.children().map(|object| ObjectRef(self.0, object))
+    }
+}
+
 /// Represents an [`Entity`] of [`Kind`] `T` with hierarchy and name information.
 pub struct Object<'w, 's, 'a, T: Kind = Any> {
     instance: Instance<T>,
@@ -126,29 +174,9 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         self.name.get(self.entity()).ok().map(|name| name.as_str())
     }
 
-    /// Returns true if this object has no parent.
-    pub fn is_root(&self) -> bool {
-        self.hierarchy.is_root(self.entity())
-    }
-
-    #[deprecated(note = "use `has_children` instead")]
-    pub fn is_parent(&self) -> bool {
-        self.has_children()
-    }
-
-    /// Returns true if this object has a parent.
-    pub fn is_child(&self) -> bool {
-        self.parent().is_some()
-    }
-
     /// Returns true if this object is a child of the given `parent` [`Entity`].
     pub fn is_child_of(&self, parent: Entity) -> bool {
         self.hierarchy.is_child_of(self.entity(), parent)
-    }
-
-    /// Returns true if this object has some children.
-    pub fn has_children(&self) -> bool {
-        self.hierarchy.has_children(self.entity())
     }
 
     /// Returns true if this object is a descendant of the given `ancestor` [`Entity`].
@@ -184,20 +212,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     /// Returns the root of this object's hierarchy.
     pub fn root(&self) -> Object<'w, 's, 'a> {
         self.rebind_any(self.hierarchy.root(self.entity()))
-    }
-
-    /// Returns the parent of this object.
-    pub fn parent(&self) -> Option<Object<'w, 's, 'a>> {
-        self.hierarchy
-            .parent(self.entity())
-            .map(|entity| self.rebind_any(entity))
-    }
-
-    /// Iterates over all children of this object.
-    pub fn children(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
-        self.hierarchy
-            .children(self.entity())
-            .map(|entity| self.rebind_any(entity))
     }
 
     pub fn children_of_kind<U: Kind>(
@@ -499,20 +513,8 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
         self.1.name()
     }
 
-    pub fn is_root(&self) -> bool {
-        self.1.is_root()
-    }
-
-    pub fn is_child(&self) -> bool {
-        self.parent().is_some()
-    }
-
     pub fn is_child_of(&self, parent: Entity) -> bool {
         self.1.is_child_of(parent)
-    }
-
-    pub fn has_children(&self) -> bool {
-        self.1.has_children()
     }
 
     pub fn is_descendant_of(&self, ancestor: Entity) -> bool {
@@ -527,16 +529,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
 
     pub fn root(&self) -> ObjectRef<'w, 's, 'a> {
         ObjectRef(self.0, self.1.root())
-    }
-
-    pub fn parent(&self) -> Option<ObjectRef<'w, 's, 'a>> {
-        self.1.parent().map(|object| ObjectRef(self.0, object))
-    }
-
-    pub fn children(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
-        self.1
-            .children()
-            .map(move |object| ObjectRef(self.0, object))
     }
 
     pub fn children_of_kind<U: Kind>(
