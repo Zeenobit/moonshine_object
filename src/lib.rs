@@ -200,6 +200,22 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             .map(|entity| self.rebind_any(entity))
     }
 
+    pub fn children_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
+        self.children()
+            .filter_map(move |object| objects.get(object.entity()).ok())
+    }
+
+    pub fn find_child_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> Option<Object<'w, 's, 'a, U>> {
+        self.children()
+            .find_map(|object| objects.get(object.entity()).ok())
+    }
+
     /// Iterates over this object in addition to all its ancestors.
     pub fn self_and_ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         std::iter::once(self.cast_into_any()).chain(self.ancestors())
@@ -210,6 +226,22 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         self.hierarchy
             .ancestors(self.entity())
             .map(|entity| self.rebind_any(entity))
+    }
+
+    pub fn ancestors_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
+        self.ancestors()
+            .filter_map(move |object| objects.get(object.entity()).ok())
+    }
+
+    pub fn find_ancestor_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> Option<Object<'w, 's, 'a, U>> {
+        self.ancestors()
+            .find_map(|object| objects.get(object.entity()).ok())
     }
 
     /// Queries all ancestors of this object with a given [`Query`].
@@ -233,6 +265,22 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         self.hierarchy
             .descendants(self.entity())
             .map(|entity| self.rebind_any(entity))
+    }
+
+    pub fn descendants_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
+        self.descendants()
+            .filter_map(move |object| objects.get(object.entity()).ok())
+    }
+
+    pub fn find_descendant_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> Option<Object<'w, 's, 'a, U>> {
+        self.descendants()
+            .find_map(|object| objects.get(object.entity()).ok())
     }
 
     /// Queries all descendants of this object with a given [`Query`].
