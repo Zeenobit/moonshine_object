@@ -214,6 +214,12 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
             .map(|object| self.rebind_as(object.instance()))
     }
 
+    fn find_child_of_kind<U: Kind>(&self, objects: &Objects<'_, '_, U>) -> Option<Self::Rebind<U>> {
+        self.children()
+            .find_map(|object| objects.get(object.entity()).ok())
+            .map(|object| self.rebind_as(object.instance()))
+    }
+
     fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
     fn is_ancestor_of(&self, entity: Entity) -> bool
@@ -244,6 +250,15 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
             .map(|object| self.rebind_as(object.instance()))
     }
 
+    fn find_ancestor_of_kind<U: Kind>(
+        &self,
+        objects: &Objects<'_, '_, U>,
+    ) -> Option<Self::Rebind<U>> {
+        self.ancestors()
+            .find_map(|object| objects.get(object.entity()).ok())
+            .map(|object| self.rebind_as(object.instance()))
+    }
+
     fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
     fn is_descendant_of(&self, entity: Entity) -> bool
@@ -271,6 +286,15 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.descendants()
             .filter_map(move |object| objects.get(object.entity()).ok())
+            .map(|object| self.rebind_as(object.instance()))
+    }
+
+    fn find_descendant_of_kind<U: Kind>(
+        &self,
+        objects: &Objects<'_, '_, U>,
+    ) -> Option<Self::Rebind<U>> {
+        self.descendants()
+            .find_map(|object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
     }
 }
@@ -371,38 +395,14 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         find_by_path(self.cast_into_any(), &tail)
     }
 
-    pub fn find_child_of_kind<U: Kind>(
-        &'a self,
-        objects: &'a Objects<'w, 's, U>,
-    ) -> Option<Object<'w, 's, 'a, U>> {
-        self.children()
-            .find_map(|object| objects.get(object.entity()).ok())
-    }
-
     /// Iterates over this object in addition to all its ancestors.
     pub fn self_and_ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         std::iter::once(self.cast_into_any()).chain(self.ancestors())
     }
 
-    pub fn find_ancestor_of_kind<U: Kind>(
-        &'a self,
-        objects: &'a Objects<'w, 's, U>,
-    ) -> Option<Object<'w, 's, 'a, U>> {
-        self.ancestors()
-            .find_map(|object| objects.get(object.entity()).ok())
-    }
-
     /// Iterates over this object in addition to all its descendants.
     pub fn self_and_descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         std::iter::once(self.cast_into_any()).chain(self.descendants())
-    }
-
-    pub fn find_descendant_of_kind<U: Kind>(
-        &'a self,
-        objects: &'a Objects<'w, 's, U>,
-    ) -> Option<Object<'w, 's, 'a, U>> {
-        self.descendants()
-            .find_map(|object| objects.get(object.entity()).ok())
     }
 }
 
