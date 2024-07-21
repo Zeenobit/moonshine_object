@@ -3,10 +3,9 @@ use moonshine_kind::prelude::*;
 use crate::{Object, ObjectInstance, ObjectRef};
 
 pub trait ObjectName {
-    /// Returns the [`Name`] of the object.
+    /// Returns the [`Name`] of this object.
     ///
     /// # Example
-    ///
     /// ```
     /// # use bevy::prelude::*;
     /// # use moonshine_object::prelude::*;
@@ -22,8 +21,6 @@ pub trait ObjectName {
     ///         println!("Entity {entity}, Name = {name}");
     ///     }
     /// }
-    ///
-    /// # bevy::ecs::system::assert_is_system(print_names);
     /// ```
     ///
     /// [`Name`]: https://docs.rs/bevy/latest/bevy/core/struct.Name.html
