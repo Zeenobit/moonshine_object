@@ -13,7 +13,8 @@ use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
     pub use super::{
-        Object, ObjectCast, ObjectHierarchy, ObjectInstance, ObjectRebind, ObjectRef, Objects,
+        Object, ObjectCast, ObjectHierarchy, ObjectInstance, ObjectName, ObjectRebind, ObjectRef,
+        Objects,
     };
 }
 
@@ -108,6 +109,22 @@ impl<'w, 's, 'a, T: Kind> ObjectInstance<T> for Object<'w, 's, 'a, T> {
 impl<'w, 's, 'a, T: Kind> ObjectInstance<T> for ObjectRef<'w, 's, 'a, T> {
     fn instance(&self) -> Instance<T> {
         self.1.instance()
+    }
+}
+
+pub trait ObjectName {
+    fn name(&self) -> Option<&str>;
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectName for Object<'w, 's, 'a, T> {
+    fn name(&self) -> Option<&str> {
+        self.name.get(self.entity()).ok().map(|name| name.as_str())
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectName for ObjectRef<'w, 's, 'a, T> {
+    fn name(&self) -> Option<&str> {
+        self.1.name()
     }
 }
 
@@ -373,11 +390,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
-    /// Returns the [`Name`] of this object.
-    pub fn name(&self) -> Option<&str> {
-        self.name.get(self.entity()).ok().map(|name| name.as_str())
-    }
-
     /// Attempts to find an object by its path, relative to this one.
     ///
     /// # Usage
@@ -519,10 +531,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     /// Assumes `base` is of [`Kind`] `T`.
     pub unsafe fn from_base_unchecked(base: ObjectRef<'w, 's, 'a>) -> Self {
         Self(base.0, Object::from_base_unchecked(base.1))
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.1.name()
     }
 
     pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<ObjectRef<'w, 's, 'a>> {
