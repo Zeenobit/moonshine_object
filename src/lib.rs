@@ -96,6 +96,10 @@ pub trait ObjectHierarchy {
 
     fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
+    fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
+    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
     fn is_root(&self) -> bool {
         self.parent().is_none()
     }
@@ -123,6 +127,18 @@ impl<'w, 's, 'a, T: Kind> ObjectHierarchy for Object<'w, 's, 'a, T> {
             .children(self.entity())
             .map(|entity| self.rebind_any(entity))
     }
+
+    fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.hierarchy
+            .ancestors(self.entity())
+            .map(|entity| self.rebind_any(entity))
+    }
+
+    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.hierarchy
+            .descendants(self.entity())
+            .map(|entity| self.rebind_any(entity))
+    }
 }
 
 impl<'w, 's, 'a, T: Kind> ObjectHierarchy for ObjectRef<'w, 's, 'a, T> {
@@ -134,6 +150,14 @@ impl<'w, 's, 'a, T: Kind> ObjectHierarchy for ObjectRef<'w, 's, 'a, T> {
 
     fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
         self.1.children().map(|object| ObjectRef(self.0, object))
+    }
+
+    fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.1.ancestors().map(|object| ObjectRef(self.0, object))
+    }
+
+    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.1.descendants().map(|object| ObjectRef(self.0, object))
     }
 }
 
@@ -235,13 +259,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         std::iter::once(self.cast_into_any()).chain(self.ancestors())
     }
 
-    /// Iterates over all ancestors of this object.
-    pub fn ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
-        self.hierarchy
-            .ancestors(self.entity())
-            .map(|entity| self.rebind_any(entity))
-    }
-
     pub fn ancestors_of_kind<U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -272,13 +289,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     /// Iterates over this object in addition to all its descendants.
     pub fn self_and_descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         std::iter::once(self.cast_into_any()).chain(self.descendants())
-    }
-
-    /// Iterates over all descendants of this object.
-    pub fn descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
-        self.hierarchy
-            .descendants(self.entity())
-            .map(|entity| self.rebind_any(entity))
     }
 
     pub fn descendants_of_kind<U: Kind>(
@@ -546,10 +556,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
             .map(|object| ObjectRef(self.0, object))
     }
 
-    pub fn ancestors(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
-        self.1.ancestors().map(|object| ObjectRef(self.0, object))
-    }
-
     pub fn ancestors_of_kind<U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -570,10 +576,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
         self.1
             .self_and_descendants()
             .map(|object| ObjectRef(self.0, object))
-    }
-
-    pub fn descendants(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
-        self.1.descendants().map(|object| ObjectRef(self.0, object))
     }
 
     pub fn descendants_of_kind<U: Kind>(
