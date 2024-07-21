@@ -222,6 +222,10 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
 
     fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
+    fn self_and_ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        std::iter::once(self.rebind_any(self.entity())).chain(self.ancestors())
+    }
+
     fn is_ancestor_of(&self, entity: Entity) -> bool
     where
         Self::Rebind<Any>: ObjectHierarchy<Any>,
@@ -260,6 +264,10 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
     }
 
     fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
+    fn self_and_descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        std::iter::once(self.rebind_any(self.entity())).chain(self.descendants())
+    }
 
     fn is_descendant_of(&self, entity: Entity) -> bool
     where
@@ -394,16 +402,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         let tail: Vec<&str> = path.as_ref().split('/').collect();
         find_by_path(self.cast_into_any(), &tail)
     }
-
-    /// Iterates over this object in addition to all its ancestors.
-    pub fn self_and_ancestors(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
-        std::iter::once(self.cast_into_any()).chain(self.ancestors())
-    }
-
-    /// Iterates over this object in addition to all its descendants.
-    pub fn self_and_descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
-        std::iter::once(self.cast_into_any()).chain(self.descendants())
-    }
 }
 
 impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
@@ -530,18 +528,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<ObjectRef<'w, 's, 'a>> {
         self.1
             .find_by_path(path)
-            .map(|object| ObjectRef(self.0, object))
-    }
-
-    pub fn self_and_ancestors(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
-        self.1
-            .self_and_ancestors()
-            .map(|object| ObjectRef(self.0, object))
-    }
-
-    pub fn self_and_descendants(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
-        self.1
-            .self_and_descendants()
             .map(|object| ObjectRef(self.0, object))
     }
 }
