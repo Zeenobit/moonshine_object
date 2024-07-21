@@ -180,6 +180,11 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
         self.parent().is_some()
     }
 
+    fn is_child_of(&self, parent: Entity) -> bool {
+        self.parent()
+            .is_some_and(|object| object.entity() == parent)
+    }
+
     fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
     fn has_children(&self) -> bool {
@@ -315,11 +320,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     /// Returns the [`Name`] of this object.
     pub fn name(&self) -> Option<&str> {
         self.name.get(self.entity()).ok().map(|name| name.as_str())
-    }
-
-    /// Returns true if this object is a child of the given `parent` [`Entity`].
-    pub fn is_child_of(&self, parent: Entity) -> bool {
-        self.hierarchy.is_child_of(self.entity(), parent)
     }
 
     /// Returns true if this object is a descendant of the given `ancestor` [`Entity`].
@@ -511,10 +511,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
 
     pub fn name(&self) -> Option<&str> {
         self.1.name()
-    }
-
-    pub fn is_child_of(&self, parent: Entity) -> bool {
-        self.1.is_child_of(parent)
     }
 
     pub fn is_descendant_of(&self, ancestor: Entity) -> bool {
