@@ -539,6 +539,15 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
             .map(move |object| ObjectRef(self.0, object))
     }
 
+    pub fn children_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, U>> + 'a {
+        self.1
+            .children_of_kind(objects)
+            .map(move |object| ObjectRef(self.0, object))
+    }
+
     pub fn self_and_ancestors(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
         self.1
             .self_and_ancestors()
@@ -547,6 +556,15 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
 
     pub fn ancestors(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
         self.1.ancestors().map(|object| ObjectRef(self.0, object))
+    }
+
+    pub fn ancestors_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, U>> + 'a {
+        self.1
+            .ancestors_of_kind(objects)
+            .map(move |object| ObjectRef(self.0, object))
     }
 
     pub fn query_ancestors<Q: QueryData, F: QueryFilter>(
@@ -564,6 +582,15 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
 
     pub fn descendants(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
         self.1.descendants().map(|object| ObjectRef(self.0, object))
+    }
+
+    pub fn descendants_of_kind<U: Kind>(
+        &'a self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, U>> + 'a {
+        self.1
+            .descendants_of_kind(objects)
+            .map(move |object| ObjectRef(self.0, object))
     }
 
     pub fn query_descendants<Q: QueryData>(
