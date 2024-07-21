@@ -10,7 +10,8 @@ pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> + Sized {
     ///
     /// # Usage
     ///
-    /// This is useful when you already have an [`Object<T>`] and an [`Instance<U>`] but you want an [`Object<U>`].
+    /// This is useful when you have an [`Object<T>`] and an [`Instance<U>`]
+    /// but you want an [`Object<U>`].
     ///
     /// # Example
     /// ```
@@ -49,7 +50,8 @@ pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> + Sized {
     ///
     /// # Usage
     ///
-    /// This is useful when you already have an [`Object<T>`] and another [`Instance<T>`] but you want another [`Object<T>`].
+    /// This is useful when you have an [`Object<T>`] and another [`Instance<T>`]
+    /// but you want another [`Object<T>`].
     ///
     /// # Example
     /// ```
@@ -87,11 +89,65 @@ pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> + Sized {
     ///
     /// # Usage
     ///
-    /// This is useful when you already have an [`Object<T>`] but you want an [`Object`] for a different [`Entity`].
+    /// This is useful when you have an [`Object<T>`] but you want an [`Object`] for a different [`Entity`].
     fn rebind_any(&self, entity: Entity) -> Self::Rebind<Any> {
         self.rebind_as(Instance::from(entity))
     }
 
+    /// Casts this object into another of a related [`Kind`].
+    ///
+    /// # Usage
+    ///
+    /// This is useful when you have an [`Object<T>`] but you want an [`Object<U>`]
+    /// where [`Kind`] `T` is safely convertible to `U`.
+    ///
+    /// See [`kind!`] for more information on kind conversion.
+    ///
+    /// # Example
+    /// ```
+    /// # use bevy::prelude::*;
+    /// # use moonshine_object::prelude::*;
+    /// # use moonshine_kind::prelude::*;
+    ///
+    /// #[derive(Component)]
+    /// struct Apple;
+    ///
+    /// #[derive(Component)]
+    /// struct Orange;
+    ///
+    /// struct Fruit;
+    ///
+    /// impl Kind for Fruit {
+    ///     // Apples and Oranges are fruits.
+    ///     type Filter = Or<(With<Apple>, With<Orange>)>;
+    /// }
+    ///
+    /// // Define related kinds:
+    /// kind!(Apple is Fruit);
+    /// kind!(Orange is Fruit);
+    ///
+    /// let mut app = App::new();
+    /// // ...
+    /// app.add_systems(Update, (eat_apples, eat_oranges));
+    ///
+    /// fn eat_apples(apples: Objects<Apple>) {
+    ///     for apple in apples.iter() {
+    ///         eat_fruit(apple.cast_into());
+    ///         println!("Crunchy!")
+    ///     }
+    /// }
+    ///
+    /// fn eat_oranges(oranges: Objects<Orange>) {
+    ///     for orange in oranges.iter() {
+    ///         eat_fruit(orange.cast_into());
+    ///         println!("Juicy!")
+    ///     }
+    /// }
+    ///
+    /// fn eat_fruit(fruit: Object<Fruit>) {
+    ///     println!("{:?} is eaten!", fruit);
+    /// }
+    /// ```
     fn cast_into<U: Kind>(self) -> Self::Rebind<U>
     where
         T: CastInto<U>,
@@ -99,13 +155,27 @@ pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> + Sized {
         self.rebind_as(self.instance().cast_into())
     }
 
+    /// Casts this object into an [`Object<Any>`].
+    ///
+    /// # Usage
+    ///
+    /// This is useful when you have an [`Object<T>`] but you want an [`Object<Any>`].
+    ///
+    /// All objects of any [`Kind`] can be cast into [`Object<Any>`].
     fn cast_into_any(self) -> Self::Rebind<Any> {
         self.rebind_as(self.instance().cast_into_any())
     }
 
+    /// Casts this object into another of a different [`Kind`].
+    ///
+    /// # Usage
+    ///
+    /// This is useful when you have an [`Object<T>`] but you want an [`Object<U>`] and
+    /// you can guarantee that [`Kind`] `T` is safely convertible to `U`.
+    ///
     /// # Safety
     ///
-    /// TODO
+    /// It is assumed that [`Kind`] `T` is safely convertible to `U`.
     unsafe fn cast_into_unchecked<U: Kind>(self) -> Self::Rebind<U> {
         self.rebind_as(self.instance().cast_into_unchecked())
     }
