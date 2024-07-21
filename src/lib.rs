@@ -12,7 +12,7 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{Object, ObjectHierarchy, ObjectInstance, ObjectRef, Objects};
+    pub use super::{Object, ObjectHierarchy, ObjectInstance, ObjectRebind, ObjectRef, Objects};
 }
 
 pub use moonshine_kind::{Any, CastInto, Kind};
@@ -109,6 +109,40 @@ impl<'w, 's, 'a, T: Kind> ObjectInstance<T> for ObjectRef<'w, 's, 'a, T> {
     }
 }
 
+pub trait ObjectRebind<T: Kind> {
+    type Rebind<U: Kind>: ObjectInstance<U>;
+
+    fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U>;
+
+    fn rebind(&self, instance: Instance<T>) -> Self::Rebind<T> {
+        self.rebind_as(instance)
+    }
+
+    fn rebind_any(&self, entity: Entity) -> Self::Rebind<Any> {
+        self.rebind_as(Instance::from(entity))
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for Object<'w, 's, 'a, T> {
+    type Rebind<U: Kind> = Object<'w, 's, 'a, U>;
+
+    fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
+        Object {
+            instance,
+            hierarchy: self.hierarchy,
+            name: self.name,
+        }
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for ObjectRef<'w, 's, 'a, T> {
+    type Rebind<U: Kind> = ObjectRef<'w, 's, 'a, U>;
+
+    fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
+        ObjectRef(self.0, self.1.rebind_as(instance))
+    }
+}
+
 pub trait ObjectHierarchy {
     type Rebind<U: Kind>: ObjectInstance<U>;
 
@@ -139,6 +173,14 @@ pub trait ObjectHierarchy {
             query.get(entity).ok()
         })
     }
+
+    // fn ancestors_of_kind<'a, U: Kind>(
+    //     &'a self,
+    //     objects: &'a Objects<'_, '_, U>,
+    // ) -> impl Iterator<Item = Object<'_, '_, '_, U>> + 'a {
+    //     self.ancestors()
+    //         .filter_map(move |object| objects.get(object.entity()).ok())
+    // }
 
     fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
@@ -324,44 +366,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     ) -> Option<Object<'w, 's, 'a, U>> {
         self.descendants()
             .find_map(|object| objects.get(object.entity()).ok())
-    }
-
-    /// Uses this object to create a new [`Object`] which references the given `instance` of the same [`Kind`].
-    ///
-    /// This function is useful when you already have an [`Object<T>`] and another [`Instance<T>`].
-    /// It gives you type-safe object access to the other instance.
-    pub fn rebind(&self, instance: Instance<T>) -> Object<'w, 's, 'a, T> {
-        Object {
-            instance,
-            hierarchy: self.hierarchy,
-            name: self.name,
-        }
-    }
-
-    /// Uses this object to create a new [`Object`] which references the given [`Entity`].
-    ///
-    /// This function is useful when you already have an [`Object<T>`] and another [`Entity`].
-    /// It gives you generic object access to the other entity.
-    pub fn rebind_any(&self, entity: Entity) -> Object<'w, 's, 'a> {
-        Object {
-            instance: Instance::from(entity),
-            hierarchy: self.hierarchy,
-            name: self.name,
-        }
-    }
-
-    /// Uses this object to create a new [`Object`] which references the given `instance` of a different [`Kind`].
-    ///
-    /// This function is useful when you already have an [`Object<T>`] and another [`Instance<U>`].
-    /// It gives you type-safe object access to the other instance.
-    ///
-    /// Note that this function assumes the given instance is a valid instance of the given kind.
-    pub fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Object<'w, 's, 'a, U> {
-        Object {
-            instance,
-            hierarchy: self.hierarchy,
-            name: self.name,
-        }
     }
 
     /// Safety casts this object into another [`Kind`].
@@ -578,18 +582,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
         self.1
             .descendants_of_kind(objects)
             .map(move |object| ObjectRef(self.0, object))
-    }
-
-    pub fn rebind(&self, instance: Instance<T>) -> ObjectRef<'w, 's, 'a, T> {
-        ObjectRef(self.0, self.1.rebind(instance))
-    }
-
-    pub fn rebind_any(&self, entity: Entity) -> ObjectRef<'w, 's, 'a> {
-        ObjectRef(self.0, self.1.rebind_any(entity))
-    }
-
-    pub fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> ObjectRef<'w, 's, 'a, U> {
-        ObjectRef(self.0, self.1.rebind_as(instance))
     }
 
     pub fn cast_into<U: Kind>(self) -> ObjectRef<'w, 's, 'a, U>
