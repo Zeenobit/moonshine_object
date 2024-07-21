@@ -1,9 +1,9 @@
 use bevy_ecs::prelude::*;
-use moonshine_kind::{prelude::*, Any};
+use moonshine_kind::{prelude::*, Any, CastInto};
 
 use crate::{Object, ObjectHierarchy, ObjectInstance, ObjectRef};
 
-pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> {
+pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> + Sized {
     type Rebind<U: Kind>: ObjectHierarchy<U>;
 
     /// Rebinds this object to an [`Instance`] of another [`Kind`].
@@ -90,6 +90,24 @@ pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> {
     /// This is useful when you already have an [`Object<T>`] but you want an [`Object`] for a different [`Entity`].
     fn rebind_any(&self, entity: Entity) -> Self::Rebind<Any> {
         self.rebind_as(Instance::from(entity))
+    }
+
+    fn cast_into<U: Kind>(self) -> Self::Rebind<U>
+    where
+        T: CastInto<U>,
+    {
+        self.rebind_as(self.instance().cast_into())
+    }
+
+    fn cast_into_any(self) -> Self::Rebind<Any> {
+        self.rebind_as(self.instance().cast_into_any())
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    unsafe fn cast_into_unchecked<U: Kind>(self) -> Self::Rebind<U> {
+        self.rebind_as(self.instance().cast_into_unchecked())
     }
 }
 

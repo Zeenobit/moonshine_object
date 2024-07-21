@@ -13,7 +13,7 @@ use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
     pub use super::{Object, ObjectRef, Objects};
-    pub use super::{ObjectCast, ObjectHierarchy, ObjectInstance, ObjectName, ObjectRebind};
+    pub use super::{ObjectHierarchy, ObjectInstance, ObjectName, ObjectRebind};
 }
 
 pub use moonshine_kind::{Any, CastInto, Kind};
@@ -237,13 +237,11 @@ impl<T: Kind> fmt::Debug for ObjectRef<'_, '_, '_, T> {
     }
 }
 
-mod cast;
 mod hierarchy;
 mod instance;
 mod name;
 mod rebind;
 
-pub use cast::*;
 pub use hierarchy::*;
 pub use instance::*;
 pub use name::*;
