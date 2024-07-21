@@ -172,6 +172,12 @@ impl<T: Kind> ObjectCast<T> for ObjectRef<'_, '_, '_, T> {}
 pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
     fn parent(&self) -> Option<Self::Rebind<Any>>;
 
+    fn root(&self) -> Self::Rebind<Any> {
+        self.ancestors()
+            .last()
+            .unwrap_or_else(|| self.rebind_any(self.entity()))
+    }
+
     fn is_root(&self) -> bool {
         self.parent().is_none()
     }
@@ -365,11 +371,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         find_by_path(self.cast_into_any(), &tail)
     }
 
-    /// Returns the root of this object's hierarchy.
-    pub fn root(&self) -> Object<'w, 's, 'a> {
-        self.rebind_any(self.hierarchy.root(self.entity()))
-    }
-
     pub fn find_child_of_kind<U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -530,19 +531,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
         self.1
             .find_by_path(path)
             .map(|object| ObjectRef(self.0, object))
-    }
-
-    pub fn root(&self) -> ObjectRef<'w, 's, 'a> {
-        ObjectRef(self.0, self.1.root())
-    }
-
-    pub fn children_of_kind<U: Kind>(
-        &'a self,
-        objects: &'a Objects<'w, 's, U>,
-    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, U>> + 'a {
-        self.1
-            .children_of_kind(objects)
-            .map(move |object| ObjectRef(self.0, object))
     }
 
     pub fn self_and_ancestors(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
