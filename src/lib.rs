@@ -475,27 +475,20 @@ fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<O
     if head == "." || head.is_empty() {
         find_by_path(curr, tail)
     } else if head == ".." {
-        if let Some(parent) = curr
-            .hierarchy
-            .parent(curr.entity())
-            .map(|parent| curr.rebind_any(parent))
-        {
+        if let Some(parent) = curr.parent() {
             find_by_path(parent, tail)
         } else {
             None
         }
     } else if head == "*" {
-        for child in curr.hierarchy.children(curr.entity()) {
-            let child = curr.rebind_any(child);
+        for child in curr.children() {
             if let Some(result) = find_by_path(child, tail) {
                 return Some(result);
             }
         }
         return None;
     } else if let Some(child) = curr
-        .hierarchy
-        .children(curr.entity())
-        .map(|child| curr.rebind_any(child))
+        .children()
         .find(|part| part.name().is_some_and(|name| name == head))
     {
         find_by_path(child, tail)
