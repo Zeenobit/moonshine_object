@@ -166,7 +166,7 @@ fn flap_wings(bird: Object<Bird>) {
 
 Like [`Instance<T>`], any [`Object<T>`] may be be cast into an [`Object<U>`][`Object`] if `T` implements [`CastInto<U>`](https://docs.rs/moonshine-kind/latest/moonshine_kind/trait.CastInto.html).
 
-You may implement this trait for your own kinds using the [`safe_cast`](https://docs.rs/moonshine-kind/latest/moonshine_kind/macro.safe_cast.html) macro:
+You may implement this trait for your own kinds using the [`kind`](https://docs.rs/moonshine-kind/latest/moonshine_kind/macro.kind.html) macro:
 
 ```rust
 use bevy::prelude::*;
@@ -184,7 +184,7 @@ impl Kind for Creature {
 }
 
 // Therefore, all birds may safely be cast into creatures:
-safe_cast!(Bird => Creature);
+kind!(Bird is Creature);
 
 // Birds can chirp.
 fn chirp(bird: Object<Bird>) {
