@@ -92,7 +92,7 @@ where
     }
 }
 
-pub trait ObjectInstance<T: Kind> {
+pub trait ObjectInstance<T: Kind = Any> {
     fn instance(&self) -> Instance<T>;
 
     fn entity(&self) -> Entity {
@@ -128,8 +128,8 @@ impl<'w, 's, 'a, T: Kind> ObjectName for ObjectRef<'w, 's, 'a, T> {
     }
 }
 
-pub trait ObjectRebind<T: Kind>: ObjectInstance<T> {
-    type Rebind<U: Kind>: ObjectInstance<U>;
+pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> {
+    type Rebind<U: Kind>: ObjectHierarchy<U>;
 
     fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U>;
 
@@ -162,7 +162,7 @@ impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for ObjectRef<'w, 's, 'a, T> {
     }
 }
 
-pub trait ObjectCast<T: Kind>: ObjectInstance<T> + ObjectRebind<T> + Sized {
+pub trait ObjectCast<T: Kind = Any>: ObjectInstance<T> + ObjectRebind<T> + Sized {
     fn cast_into<U: Kind>(self) -> Self::Rebind<U>
     where
         T: CastInto<U>,
@@ -186,7 +186,7 @@ impl<T: Kind> ObjectCast<T> for Object<'_, '_, '_, T> {}
 
 impl<T: Kind> ObjectCast<T> for ObjectRef<'_, '_, '_, T> {}
 
-pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
+pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     fn parent(&self) -> Option<Self::Rebind<Any>>;
 
     fn root(&self) -> Self::Rebind<Any> {
@@ -322,6 +322,28 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
             .find_map(|object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
     }
+
+    /// Attempts to find an object by its path, relative to this one.
+    ///
+    /// # Usage
+    ///
+    /// An **Object Path** is a string of object names separated by slashes which represents
+    /// the path to an object within a hierarchy.
+    ///
+    /// In additional to object names, the path may contain the following special characters:
+    ///   - `.` represents this object.
+    ///   - `..` represents the parent object.
+    ///   - `*` represents any child object.
+    ///
+    /// Note that this method of object search is relatively slow, and should be reserved for
+    /// when performance is not the top priority, such as during initialization or prototyping.
+    ///
+    /// Instead, prefer to use [`Component`] to tag your entities and [`Query`] them instead, if possible.
+    ///
+    /// # Safety
+    /// This method is somewhat experimental with plans for future expansion.
+    /// Please [report](https://github.com/Zeenobit/moonshine_object/issues) any bugs you encounter or features you'd like.
+    fn find_by_path(&self, path: impl AsRef<str>) -> Option<Self::Rebind<Any>>;
 }
 
 impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for Object<'w, 's, 'a, T> {
@@ -348,6 +370,11 @@ impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for Object<'w, 's, 'a, T> {
             .descendants(self.entity())
             .map(|entity| self.rebind_any(entity))
     }
+
+    fn find_by_path(&self, path: impl AsRef<str>) -> Option<Self::Rebind<Any>> {
+        let tail: Vec<&str> = path.as_ref().split('/').collect();
+        find_by_path(self.cast_into_any(), &tail)
+    }
 }
 
 impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for ObjectRef<'w, 's, 'a, T> {
@@ -365,6 +392,12 @@ impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for ObjectRef<'w, 's, 'a, T> {
 
     fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
         self.1.descendants().map(|object| ObjectRef(self.0, object))
+    }
+
+    fn find_by_path(&self, path: impl AsRef<str>) -> Option<Self::Rebind<Any>> {
+        self.1
+            .find_by_path(path)
+            .map(|object| ObjectRef(self.0, object))
     }
 }
 
@@ -388,31 +421,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             hierarchy: base.hierarchy,
             name: base.name,
         }
-    }
-
-    /// Attempts to find an object by its path, relative to this one.
-    ///
-    /// # Usage
-    ///
-    /// An **Object Path** is a string of object names separated by slashes which represents
-    /// the path to an object within a hierarchy.
-    ///
-    /// In additional to object names, the path may contain the following special characters:
-    ///   - `.` represents this object.
-    ///   - `..` represents the parent object.
-    ///   - `*` represents any child object.
-    ///
-    /// Note that this method of object search is relatively slow, and should be reserved for
-    /// when performance is not the top priority, such as during initialization or prototyping.
-    ///
-    /// Instead, prefer to use [`Component`] to tag your entities and [`Query`] them instead, if possible.
-    ///
-    /// # Safety
-    /// This method is somewhat experimental with plans for future expansion.
-    /// Please [report](https://github.com/Zeenobit/moonshine_object/issues) any bugs you encounter or features you'd like.
-    pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<Object<'w, 's, 'a>> {
-        let tail: Vec<&str> = path.as_ref().split('/').collect();
-        find_by_path(self.cast_into_any(), &tail)
     }
 }
 
@@ -464,7 +472,10 @@ impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
     }
 }
 
-fn find_by_path<'w, 's, 'a>(curr: Object<'w, 's, 'a>, tail: &[&str]) -> Option<Object<'w, 's, 'a>> {
+fn find_by_path<T: ObjectHierarchy<Rebind<Any> = T>>(
+    curr: T,
+    tail: &[&str],
+) -> Option<T::Rebind<Any>> {
     if tail.is_empty() {
         return Some(curr);
     }
@@ -524,12 +535,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     /// Assumes `base` is of [`Kind`] `T`.
     pub unsafe fn from_base_unchecked(base: ObjectRef<'w, 's, 'a>) -> Self {
         Self(base.0, Object::from_base_unchecked(base.1))
-    }
-
-    pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<ObjectRef<'w, 's, 'a>> {
-        self.1
-            .find_by_path(path)
-            .map(|object| ObjectRef(self.0, object))
     }
 }
 
