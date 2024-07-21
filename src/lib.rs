@@ -12,7 +12,9 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{Object, ObjectHierarchy, ObjectInstance, ObjectRebind, ObjectRef, Objects};
+    pub use super::{
+        Object, ObjectCast, ObjectHierarchy, ObjectInstance, ObjectRebind, ObjectRef, Objects,
+    };
 }
 
 pub use moonshine_kind::{Any, CastInto, Kind};
@@ -142,6 +144,30 @@ impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for ObjectRef<'w, 's, 'a, T> {
         ObjectRef(self.0, self.1.rebind_as(instance))
     }
 }
+
+pub trait ObjectCast<T: Kind>: ObjectInstance<T> + ObjectRebind<T> + Sized {
+    fn cast_into<U: Kind>(self) -> Self::Rebind<U>
+    where
+        T: CastInto<U>,
+    {
+        self.rebind_as(self.instance().cast_into())
+    }
+
+    fn cast_into_any(self) -> Self::Rebind<Any> {
+        self.rebind_as(self.instance().cast_into_any())
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    unsafe fn cast_into_unchecked<U: Kind>(self) -> Self::Rebind<U> {
+        self.rebind_as(self.instance().cast_into_unchecked())
+    }
+}
+
+impl<T: Kind> ObjectCast<T> for Object<'_, '_, '_, T> {}
+
+impl<T: Kind> ObjectCast<T> for ObjectRef<'_, '_, '_, T> {}
 
 pub trait ObjectHierarchy {
     type Rebind<U: Kind>: ObjectInstance<U>;
@@ -367,43 +393,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         self.descendants()
             .find_map(|object| objects.get(object.entity()).ok())
     }
-
-    /// Safety casts this object into another [`Kind`].
-    ///
-    /// See [`CastInto`] for more information.
-    pub fn cast_into<U: Kind>(self) -> Object<'w, 's, 'a, U>
-    where
-        T: CastInto<U>,
-    {
-        Object {
-            instance: self.instance.cast_into(),
-            hierarchy: self.hierarchy,
-            name: self.name,
-        }
-    }
-
-    /// Returns this object as an [`Object<Any>`].
-    pub fn cast_into_any(self) -> Object<'w, 's, 'a> {
-        Object {
-            instance: self.instance.cast_into_any(),
-            hierarchy: self.hierarchy,
-            name: self.name,
-        }
-    }
-
-    /// Casts this object into another [`Kind`] without any safety checks.
-    ///
-    /// This is semantically equivalent to a raw C-style cast.
-    ///
-    /// # Safety
-    /// Assumes any instance of kind `T` is also a valid instance of kind `U`.
-    pub unsafe fn cast_into_unchecked<U: Kind>(self) -> Object<'w, 's, 'a, U> {
-        Object {
-            instance: self.instance.cast_into_unchecked(),
-            hierarchy: self.hierarchy,
-            name: self.name,
-        }
-    }
 }
 
 impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
@@ -582,27 +571,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
         self.1
             .descendants_of_kind(objects)
             .map(move |object| ObjectRef(self.0, object))
-    }
-
-    pub fn cast_into<U: Kind>(self) -> ObjectRef<'w, 's, 'a, U>
-    where
-        T: CastInto<U>,
-    {
-        ObjectRef(self.0, self.1.cast_into())
-    }
-
-    pub fn as_any(&self) -> ObjectRef<'_, '_, '_> {
-        ObjectRef(self.0, self.1.cast_into_any())
-    }
-
-    /// Casts this object into another [`Kind`] without any safety checks.
-    ///
-    /// This is semantically equivalent to a raw C-style cast.
-    ///
-    /// # Safety
-    /// Assumes any instance of kind `T` is also a valid instance of kind `U`.
-    pub unsafe fn cast_into_unchecked<U: Kind>(self) -> ObjectRef<'w, 's, 'a, U> {
-        ObjectRef(self.0, self.1.cast_into_unchecked())
     }
 }
 
