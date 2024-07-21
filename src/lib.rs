@@ -12,7 +12,7 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{Object, ObjectHierarchy, ObjectRef, Objects};
+    pub use super::{Object, ObjectHierarchy, ObjectInstance, ObjectRef, Objects};
 }
 
 pub use moonshine_kind::{Any, CastInto, Kind};
@@ -89,16 +89,30 @@ where
     }
 }
 
+pub trait ObjectInstance<T: Kind> {
+    fn instance(&self) -> Instance<T>;
+
+    fn entity(&self) -> Entity {
+        self.instance().entity()
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectInstance<T> for Object<'w, 's, 'a, T> {
+    fn instance(&self) -> Instance<T> {
+        self.instance
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> ObjectInstance<T> for ObjectRef<'w, 's, 'a, T> {
+    fn instance(&self) -> Instance<T> {
+        self.1.instance()
+    }
+}
+
 pub trait ObjectHierarchy {
-    type Rebind<U: Kind>;
+    type Rebind<U: Kind>: ObjectInstance<U>;
 
     fn parent(&self) -> Option<Self::Rebind<Any>>;
-
-    fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
-
-    fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
-
-    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
     fn is_root(&self) -> bool {
         self.parent().is_none()
@@ -108,8 +122,34 @@ pub trait ObjectHierarchy {
         self.parent().is_some()
     }
 
+    fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
     fn has_children(&self) -> bool {
         self.children().next().is_some()
+    }
+
+    fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
+    fn query_ancestors<'a, Q: QueryData, F: QueryFilter>(
+        &'a self,
+        query: &'a Query<'_, '_, Q, F>,
+    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
+        self.ancestors().filter_map(move |object| {
+            let entity = object.entity();
+            query.get(entity).ok()
+        })
+    }
+
+    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
+    fn query_descendants<'a, Q: QueryData>(
+        &'a self,
+        query: &'a Query<'_, '_, Q>,
+    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
+        self.descendants().filter_map(move |object| {
+            let entity = object.entity();
+            query.get(entity).ok()
+        })
     }
 }
 
@@ -181,16 +221,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             hierarchy: base.hierarchy,
             name: base.name,
         }
-    }
-
-    /// Returns this object as an [`Instance<T>`].
-    pub fn instance(&self) -> Instance<T> {
-        self.instance
-    }
-
-    /// Returns this object as an [`Entity`].
-    pub fn entity(&self) -> Entity {
-        self.instance.entity()
     }
 
     /// Returns the [`Name`] of this object.
@@ -275,17 +305,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             .find_map(|object| objects.get(object.entity()).ok())
     }
 
-    /// Queries all ancestors of this object with a given [`Query`].
-    pub fn query_ancestors<Q: QueryData, F: QueryFilter>(
-        &'a self,
-        query: &'a Query<'w, 's, Q, F>,
-    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
-        self.ancestors().filter_map(move |object| {
-            let entity = object.entity();
-            query.get(entity).ok()
-        })
-    }
-
     /// Iterates over this object in addition to all its descendants.
     pub fn self_and_descendants(&self) -> impl Iterator<Item = Object<'w, 's, 'a>> + '_ {
         std::iter::once(self.cast_into_any()).chain(self.descendants())
@@ -305,17 +324,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     ) -> Option<Object<'w, 's, 'a, U>> {
         self.descendants()
             .find_map(|object| objects.get(object.entity()).ok())
-    }
-
-    /// Queries all descendants of this object with a given [`Query`].
-    pub fn query_descendants<Q: QueryData>(
-        &'a self,
-        query: &'a Query<'w, 's, Q>,
-    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
-        self.descendants().filter_map(move |object| {
-            let entity = object.entity();
-            query.get(entity).ok()
-        })
     }
 
     /// Uses this object to create a new [`Object`] which references the given `instance` of the same [`Kind`].
@@ -511,14 +519,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
         Self(base.0, Object::from_base_unchecked(base.1))
     }
 
-    pub fn instance(&self) -> Instance<T> {
-        self.1.instance()
-    }
-
-    pub fn entity(&self) -> Entity {
-        self.1.entity()
-    }
-
     pub fn name(&self) -> Option<&str> {
         self.1.name()
     }
@@ -565,13 +565,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
             .map(move |object| ObjectRef(self.0, object))
     }
 
-    pub fn query_ancestors<Q: QueryData, F: QueryFilter>(
-        &'a self,
-        query: &'a Query<'w, 's, Q, F>,
-    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
-        self.1.query_ancestors(query)
-    }
-
     pub fn self_and_descendants(&self) -> impl Iterator<Item = ObjectRef<'w, 's, 'a>> + '_ {
         self.1
             .self_and_descendants()
@@ -585,13 +578,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
         self.1
             .descendants_of_kind(objects)
             .map(move |object| ObjectRef(self.0, object))
-    }
-
-    pub fn query_descendants<Q: QueryData>(
-        &'a self,
-        query: &'a Query<'w, 's, Q>,
-    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
-        self.1.query_descendants(query)
     }
 
     pub fn rebind(&self, instance: Instance<T>) -> ObjectRef<'w, 's, 'a, T> {
