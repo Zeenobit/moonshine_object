@@ -111,7 +111,7 @@ impl<'w, 's, 'a, T: Kind> ObjectInstance<T> for ObjectRef<'w, 's, 'a, T> {
     }
 }
 
-pub trait ObjectRebind<T: Kind> {
+pub trait ObjectRebind<T: Kind>: ObjectInstance<T> {
     type Rebind<U: Kind>: ObjectInstance<U>;
 
     fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U>;
@@ -210,6 +210,15 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
 
     fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
+    fn is_ancestor_of(&self, entity: Entity) -> bool
+    where
+        Self::Rebind<Any>: ObjectHierarchy<Any>,
+    {
+        self.rebind_any(entity)
+            .ancestors()
+            .any(|ancestor| ancestor.entity() == self.entity())
+    }
+
     fn query_ancestors<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'a Query<'_, '_, Q, F>,
@@ -230,6 +239,15 @@ pub trait ObjectHierarchy<T: Kind>: ObjectRebind<T> {
     }
 
     fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
+    fn is_descendant_of(&self, entity: Entity) -> bool
+    where
+        Self::Rebind<Any>: ObjectHierarchy<Any>,
+    {
+        self.rebind_any(entity)
+            .descendants()
+            .any(|descendant| descendant.entity() == self.entity())
+    }
 
     fn query_descendants<'a, Q: QueryData>(
         &'a self,
@@ -320,11 +338,6 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     /// Returns the [`Name`] of this object.
     pub fn name(&self) -> Option<&str> {
         self.name.get(self.entity()).ok().map(|name| name.as_str())
-    }
-
-    /// Returns true if this object is a descendant of the given `ancestor` [`Entity`].
-    pub fn is_descendant_of(&self, ancestor: Entity) -> bool {
-        self.hierarchy.is_descendant_of(self.entity(), ancestor)
     }
 
     /// Attempts to find an object by its path, relative to this one.
@@ -511,10 +524,6 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
 
     pub fn name(&self) -> Option<&str> {
         self.1.name()
-    }
-
-    pub fn is_descendant_of(&self, ancestor: Entity) -> bool {
-        self.1.is_descendant_of(ancestor)
     }
 
     pub fn find_by_path(&self, path: impl AsRef<str>) -> Option<ObjectRef<'w, 's, 'a>> {
