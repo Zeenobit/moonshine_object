@@ -579,6 +579,18 @@ impl<T: Kind> From<ObjectRef<'_, '_, '_, T>> for Instance<T> {
     }
 }
 
+impl<'w, 's, 'a, T: Kind> From<ObjectRef<'w, 's, 'a, T>> for Object<'w, 's, 'a, T> {
+    fn from(object: ObjectRef<'w, 's, 'a, T>) -> Self {
+        object.1
+    }
+}
+
+impl<'w, 's, 'a, T: Kind> From<&ObjectRef<'w, 's, 'a, T>> for Object<'w, 's, 'a, T> {
+    fn from(object: &ObjectRef<'w, 's, 'a, T>) -> Self {
+        object.1
+    }
+}
+
 impl<T: Kind> PartialEq for ObjectRef<'_, '_, '_, T> {
     fn eq(&self, other: &Self) -> bool {
         self.1 == other.1
