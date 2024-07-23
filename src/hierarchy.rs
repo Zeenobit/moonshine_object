@@ -98,45 +98,73 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .map(|object| self.rebind_as(object.instance()))
     }
 
-    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+    #[deprecated(note = "use `descendants_wide` instead")]
+    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.descendants_wide()
+    }
 
-    fn self_and_descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        std::iter::once(self.rebind_any(self.entity())).chain(self.descendants())
+    fn descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
+    fn descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
+
+    fn self_and_descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        std::iter::once(self.rebind_any(self.entity())).chain(self.descendants_wide())
+    }
+
+    fn self_and_descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        std::iter::once(self.rebind_any(self.entity())).chain(self.descendants_deep())
     }
 
     fn is_descendant_of(&self, entity: Entity) -> bool
     where
         Self::Rebind<Any>: ObjectHierarchy<Any>,
     {
-        self.rebind_any(entity)
-            .descendants()
-            .any(|descendant| descendant.entity() == self.entity())
+        self.ancestors().any(|ancestor| ancestor.entity() == entity)
     }
 
-    fn query_descendants<'a, Q: QueryData>(
+    fn query_descendants_wide<'a, Q: QueryData>(
         &'a self,
         query: &'a Query<'_, '_, Q>,
     ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
-        self.descendants().filter_map(move |object| {
+        self.descendants_wide().filter_map(move |object| {
             let entity = object.entity();
             query.get(entity).ok()
         })
     }
 
-    fn descendants_of_kind<'a, U: Kind>(
+    fn descendants_of_kind_wide<'a, U: Kind>(
         &'a self,
         objects: &'a Objects<'_, '_, U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
-        self.descendants()
+        self.descendants_wide()
             .filter_map(move |object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
     }
 
-    fn find_descendant_of_kind<U: Kind>(
+    fn query_descendants_deep<'a, Q: QueryData>(
+        &'a self,
+        query: &'a Query<'_, '_, Q>,
+    ) -> impl Iterator<Item = QueryItem<'_, Q::ReadOnly>> + 'a {
+        self.descendants_deep().filter_map(move |object| {
+            let entity = object.entity();
+            query.get(entity).ok()
+        })
+    }
+
+    fn find_descendant_of_kind_wide<U: Kind>(
         &self,
         objects: &Objects<'_, '_, U>,
     ) -> Option<Self::Rebind<U>> {
-        self.descendants()
+        self.descendants_wide()
+            .find_map(|object| objects.get(object.entity()).ok())
+            .map(|object| self.rebind_as(object.instance()))
+    }
+
+    fn find_descendant_of_kind_deep<U: Kind>(
+        &self,
+        objects: &Objects<'_, '_, U>,
+    ) -> Option<Self::Rebind<U>> {
+        self.descendants_deep()
             .find_map(|object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
     }
@@ -183,9 +211,15 @@ impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for Object<'w, 's, 'a, T> {
             .map(|entity| self.rebind_any(entity))
     }
 
-    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+    fn descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
         self.hierarchy
-            .descendants(self.entity())
+            .descendants_wide(self.entity())
+            .map(|entity| self.rebind_any(entity))
+    }
+
+    fn descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.hierarchy
+            .descendants_deep(self.entity())
             .map(|entity| self.rebind_any(entity))
     }
 
@@ -208,8 +242,16 @@ impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for ObjectRef<'w, 's, 'a, T> {
         self.1.ancestors().map(|object| ObjectRef(self.0, object))
     }
 
-    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        self.1.descendants().map(|object| ObjectRef(self.0, object))
+    fn descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.1
+            .descendants_wide()
+            .map(|object| ObjectRef(self.0, object))
+    }
+
+    fn descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.1
+            .descendants_deep()
+            .map(|object| ObjectRef(self.0, object))
     }
 
     fn find_by_path(&self, path: impl AsRef<str>) -> Option<Self::Rebind<Any>> {
