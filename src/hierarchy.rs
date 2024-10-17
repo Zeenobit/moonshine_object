@@ -108,11 +108,6 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .map(|object| self.rebind_as(object.instance()))
     }
 
-    #[deprecated(note = "use `descendants_wide` instead")]
-    fn descendants(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        self.descendants_wide()
-    }
-
     fn descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
     fn descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
