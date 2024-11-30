@@ -263,32 +263,37 @@ mod tests {
         //  / \
         // C   D
 
-        let (a, b, c, d) = w.run_system_once(|mut commands: Commands| {
-            let a = commands.spawn(Name::new("A")).id();
-            let b = commands.spawn(Name::new("B")).id();
-            let c = commands.spawn(Name::new("C")).id();
-            let d = commands.spawn(Name::new("D")).id();
+        let (a, b, c, d) = w
+            .run_system_once(|mut commands: Commands| {
+                let a = commands.spawn(Name::new("A")).id();
+                let b = commands.spawn(Name::new("B")).id();
+                let c = commands.spawn(Name::new("C")).id();
+                let d = commands.spawn(Name::new("D")).id();
 
-            commands.entity(a).push_children(&[b]);
-            commands.entity(b).push_children(&[c, d]);
+                commands.entity(a).add_children(&[b]);
+                commands.entity(b).add_children(&[c, d]);
 
-            (a, b, c, d)
-        });
+                (a, b, c, d)
+            })
+            .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects.get(a).unwrap().find_by_path("").unwrap().entity();
             assert_eq!(a, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects.get(a).unwrap().find_by_path(".").unwrap().entity();
             assert_eq!(a, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects.get(a).unwrap().find_by_path("B").unwrap().entity();
             assert_eq!(b, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects
@@ -298,7 +303,8 @@ mod tests {
                 .unwrap()
                 .entity();
             assert_eq!(c, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects
@@ -308,7 +314,8 @@ mod tests {
                 .unwrap()
                 .entity();
             assert_eq!(d, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects
@@ -318,7 +325,8 @@ mod tests {
                 .unwrap()
                 .entity();
             assert_eq!(c, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects
@@ -328,7 +336,8 @@ mod tests {
                 .unwrap()
                 .entity();
             assert_eq!(d, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects
@@ -338,17 +347,20 @@ mod tests {
                 .unwrap()
                 .entity();
             assert_eq!(c, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects.get(b).unwrap().find_by_path("..").unwrap().entity();
             assert_eq!(a, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects.get(c).unwrap().find_by_path("..").unwrap().entity();
             assert_eq!(b, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects
@@ -358,7 +370,8 @@ mod tests {
                 .unwrap()
                 .entity();
             assert_eq!(d, x);
-        });
+        })
+        .unwrap();
 
         w.run_system_once(move |objects: Objects| {
             let x = objects
@@ -368,7 +381,8 @@ mod tests {
                 .unwrap()
                 .entity();
             assert_eq!(c, x);
-        });
+        })
+        .unwrap();
     }
 
     #[test]
@@ -379,13 +393,13 @@ mod tests {
         let mut w = World::new();
         let entity = w.spawn(T).id();
 
-        assert!(
-            w.run_system_once(move |world: &World, objects: Objects<T>| {
+        assert!(w
+            .run_system_once(move |world: &World, objects: Objects<T>| {
                 objects
                     .get_single_ref(world.entity(entity))
                     .unwrap()
                     .contains::<T>()
             })
-        );
+            .unwrap());
     }
 }

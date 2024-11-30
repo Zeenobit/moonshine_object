@@ -29,13 +29,13 @@ pub trait ObjectInstance<T: Kind = Any> {
     }
 }
 
-impl<'w, 's, 'a, T: Kind> ObjectInstance<T> for Object<'w, 's, 'a, T> {
+impl<T: Kind> ObjectInstance<T> for Object<'_, '_, '_, T> {
     fn instance(&self) -> Instance<T> {
         self.instance
     }
 }
 
-impl<'w, 's, 'a, T: Kind> ObjectInstance<T> for ObjectRef<'w, 's, 'a, T> {
+impl<T: Kind> ObjectInstance<T> for ObjectRef<'_, '_, '_, T> {
     fn instance(&self) -> Instance<T> {
         self.1.instance()
     }
