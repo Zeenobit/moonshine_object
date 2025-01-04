@@ -8,6 +8,7 @@ use bevy_ecs::{
     query::{QueryEntityError, QueryFilter, QuerySingleError},
     system::SystemParam,
 };
+use bevy_hierarchy::Parent;
 use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
@@ -26,6 +27,7 @@ where
     F: 'static + QueryFilter,
 {
     pub instance: Query<'w, 's, Instance<T>, F>,
+    pub root: Query<'w, 's, Instance<T>, (F, Without<Parent>)>,
     pub hierarchy: HierarchyQuery<'w, 's>,
     pub name: Query<'w, 's, &'static Name>,
 }
@@ -44,8 +46,21 @@ where
         })
     }
 
+    /// Iterates over all [`Object`]s of [`Kind`] `T` which match the [`QueryFilter`] `F`.
+    pub fn iter_root(&self) -> impl Iterator<Item = Object<'w, 's, '_, T>> {
+        self.root.iter().map(|instance| Object {
+            instance,
+            hierarchy: &self.hierarchy,
+            name: &self.name,
+        })
+    }
+
     pub fn contains(&self, entity: Entity) -> bool {
         self.instance.contains(entity)
+    }
+
+    pub fn contains_root(&self, entity: Entity) -> bool {
+        self.root.contains(entity)
     }
 
     pub fn iter_ref<'a>(
@@ -53,12 +68,28 @@ where
         world: &'a World,
     ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, T>> {
         self.iter()
-            .map(|object| ObjectRef(world.entity(object.entity()), object))
+            .map(|object: Object<T>| ObjectRef(world.entity(object.entity()), object))
+    }
+
+    pub fn iter_root_ref<'a>(
+        &'a self,
+        world: &'a World,
+    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, T>> {
+        self.iter()
+            .map(|object: Object<T>| ObjectRef(world.entity(object.entity()), object))
     }
 
     /// Gets the [`Object`] of [`Kind`] `T` from an [`Entity`], if it matches.
     pub fn get(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
         self.instance.get(entity).map(|instance| Object {
+            instance,
+            hierarchy: &self.hierarchy,
+            name: &self.name,
+        })
+    }
+
+    pub fn get_root(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
+        self.root.get(entity).map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
             name: &self.name,
@@ -71,6 +102,14 @@ where
 
     pub fn get_single(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
         self.instance.get_single().map(|instance| Object {
+            instance,
+            hierarchy: &self.hierarchy,
+            name: &self.name,
+        })
+    }
+
+    pub fn get_single_root(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
+        self.root.get_single().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
             name: &self.name,
@@ -399,6 +438,38 @@ mod tests {
                     .get_single_ref(world.entity(entity))
                     .unwrap()
                     .contains::<T>()
+            })
+            .unwrap());
+    }
+
+    #[test]
+    fn root_objects() {
+        #[derive(Component)]
+        struct T;
+
+        //     A
+        //    /
+        //   B
+        //  / \
+        // C   D
+
+        let mut w = World::new();
+        let root = w
+            .spawn(T) /* A */
+            .with_children(|children| {
+                children.spawn(T /* B */).with_children(|children| {
+                    children.spawn(T /* C */);
+                    children.spawn(T /* D */);
+                });
+            })
+            .id();
+
+        assert!(w
+            .run_system_once(move |objects: Objects<T>| {
+                assert_eq!(objects.iter_root().count(), 1);
+                assert!(objects.contains_root(root));
+                assert!(objects.get_single_root().is_ok());
+                true
             })
             .unwrap());
     }
