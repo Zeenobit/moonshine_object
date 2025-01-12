@@ -226,7 +226,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     fn find_by_path(&self, path: impl AsRef<str>) -> Option<Self::Rebind<Any>>;
 }
 
-impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for Object<'w, 's, 'a, T> {
+impl<T: Kind> ObjectHierarchy<T> for Object<'_, '_, '_, T> {
     fn parent(&self) -> Option<Self::Rebind<Any>> {
         self.hierarchy
             .parent(self.entity())
@@ -263,7 +263,7 @@ impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for Object<'w, 's, 'a, T> {
     }
 }
 
-impl<'w, 's, 'a, T: Kind> ObjectHierarchy<T> for ObjectRef<'w, 's, 'a, T> {
+impl<T: Kind> ObjectHierarchy<T> for ObjectRef<'_, '_, '_, T> {
     fn parent(&self) -> Option<Self::Rebind<Any>> {
         self.1.parent().map(|object| ObjectRef(self.0, object))
     }
