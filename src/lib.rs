@@ -191,12 +191,11 @@ impl<T: Kind> Eq for Object<'_, '_, '_, T> {}
 
 impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut out = f.debug_tuple(&T::debug_name());
-        out.field(&self.entity());
         if let Some(name) = self.name() {
-            out.field(&name);
+            write!(f, "{}({}, {})", &T::debug_name(), self.entity(), name)
+        } else {
+            write!(f, "{}({})", &T::debug_name(), self.entity())
         }
-        out.finish()
     }
 }
 
