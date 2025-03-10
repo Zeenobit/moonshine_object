@@ -99,6 +99,15 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .map(|object| self.rebind_as(object.instance()))
     }
 
+    fn self_and_ancestors_of_kind<'a, U: Kind>(
+        &'a self,
+        objects: &'a Objects<'_, '_, U>,
+    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        self.self_and_ancestors()
+            .filter_map(move |object| objects.get(object.entity()).ok())
+            .map(|object| self.rebind_as(object.instance()))
+    }
+
     fn find_ancestor_of_kind<U: Kind>(
         &self,
         objects: &Objects<'_, '_, U>,
@@ -141,6 +150,24 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         objects: &'a Objects<'_, '_, U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.descendants_deep()
+            .filter_map(move |object| objects.get(object.entity()).ok())
+            .map(|object| self.rebind_as(object.instance()))
+    }
+
+    fn self_and_descendants_of_kind_wide<'a, U: Kind>(
+        &'a self,
+        objects: &'a Objects<'_, '_, U>,
+    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        self.self_and_descendants_wide()
+            .filter_map(move |object| objects.get(object.entity()).ok())
+            .map(|object| self.rebind_as(object.instance()))
+    }
+
+    fn self_and_descendants_of_kind_deep<'a, U: Kind>(
+        &'a self,
+        objects: &'a Objects<'_, '_, U>,
+    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        self.self_and_descendants_deep()
             .filter_map(move |object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
     }
