@@ -192,7 +192,7 @@ impl<T: Kind> Eq for Object<'_, '_, '_, T> {}
 impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
-            write!(f, "{}({:?}, {})", &T::debug_name(), self.entity(), name)
+            write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
         } else {
             write!(f, "{}({:?})", &T::debug_name(), self.entity())
         }
@@ -202,7 +202,7 @@ impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
 impl<T: Kind> fmt::Display for Object<'_, '_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
-            write!(f, "{}({}, {})", &T::debug_name(), self.entity(), name)
+            write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
         } else {
             write!(f, "{}({})", &T::debug_name(), self.entity())
         }
@@ -281,7 +281,21 @@ impl<T: Kind> Eq for ObjectRef<'_, '_, '_, T> {}
 
 impl<T: Kind> fmt::Debug for ObjectRef<'_, '_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.1.fmt(f)
+        if let Some(name) = self.name() {
+            write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
+        } else {
+            write!(f, "{}({:?})", &T::debug_name(), self.entity())
+        }
+    }
+}
+
+impl<T: Kind> fmt::Display for ObjectRef<'_, '_, '_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(name) = self.name() {
+            write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
+        } else {
+            write!(f, "{}({})", &T::debug_name(), self.entity())
+        }
     }
 }
 
