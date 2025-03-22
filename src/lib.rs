@@ -13,7 +13,7 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::{Object, ObjectRef, Objects};
+    pub use super::{Object, ObjectRef, Objects, RootObjects};
     pub use super::{ObjectHierarchy, ObjectInstance, ObjectName, ObjectRebind};
 }
 
@@ -27,7 +27,6 @@ where
     F: 'static + QueryFilter,
 {
     pub instance: Query<'w, 's, Instance<T>, F>,
-    pub root: Query<'w, 's, Instance<T>, (F, Without<Parent>)>,
     pub hierarchy: HierarchyQuery<'w, 's>,
     pub name: Query<'w, 's, &'static Name>,
 }
@@ -47,20 +46,23 @@ where
     }
 
     /// Iterates over all [`Object`]s of [`Kind`] `T` which match the [`QueryFilter`] `F`.
+    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
     pub fn iter_root(&self) -> impl Iterator<Item = Object<'w, 's, '_, T>> {
-        self.root.iter().map(|instance| Object {
-            instance,
-            hierarchy: &self.hierarchy,
-            name: &self.name,
-        })
+        self.iter().filter(|object| object.is_root())
+        // self.root.iter().map(|instance| Object {
+        //     instance,
+        //     hierarchy: &self.hierarchy,
+        //     name: &self.name,
+        // })
     }
 
     pub fn contains(&self, entity: Entity) -> bool {
         self.instance.contains(entity)
     }
 
+    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
     pub fn contains_root(&self, entity: Entity) -> bool {
-        self.root.contains(entity)
+        self.get(entity).is_ok_and(|object| object.is_root())
     }
 
     pub fn iter_ref<'a>(
@@ -71,6 +73,7 @@ where
             .map(|object: Object<T>| ObjectRef(world.entity(object.entity()), object))
     }
 
+    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
     pub fn iter_root_ref<'a>(
         &'a self,
         world: &'a World,
@@ -88,11 +91,15 @@ where
         })
     }
 
+    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
     pub fn get_root(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
-        self.root.get(entity).map(|instance| Object {
-            instance,
-            hierarchy: &self.hierarchy,
-            name: &self.name,
+        self.get(entity).and_then(|object| {
+            if object.is_root() {
+                Ok(object)
+            } else {
+                // NOTE: Not the most accurate error data, but the function is deprecated. Will be removed soon.
+                Err(QueryEntityError::NoSuchEntity(entity))
+            }
         })
     }
 
@@ -108,11 +115,15 @@ where
         })
     }
 
+    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
     pub fn get_single_root(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
-        self.root.get_single().map(|instance| Object {
-            instance,
-            hierarchy: &self.hierarchy,
-            name: &self.name,
+        self.get_single().and_then(|object| {
+            if object.is_root() {
+                Ok(object)
+            } else {
+                // NOTE: Not the most accurate error data, but the function is deprecated. Will be removed soon.
+                Err(QuerySingleError::NoEntities("Object is not root"))
+            }
         })
     }
 
@@ -128,6 +139,8 @@ where
         self.get(instance.entity()).expect("instance must be valid")
     }
 }
+
+pub type RootObjects<'w, 's, T = Any, F = ()> = Objects<'w, 's, T, (F, Without<Parent>)>;
 
 /// Represents an [`Entity`] of [`Kind`] `T` with hierarchy and name information.
 pub struct Object<'w, 's, 'a, T: Kind = Any> {
@@ -488,10 +501,10 @@ mod tests {
             .id();
 
         assert!(w
-            .run_system_once(move |objects: Objects<T>| {
-                assert_eq!(objects.iter_root().count(), 1);
-                assert!(objects.contains_root(root));
-                assert!(objects.get_single_root().is_ok());
+            .run_system_once(move |objects: RootObjects<T>| {
+                assert_eq!(objects.iter().count(), 1);
+                assert!(objects.contains(root));
+                assert!(objects.get_single().is_ok());
                 true
             })
             .unwrap());
