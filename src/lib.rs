@@ -49,11 +49,6 @@ where
     #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
     pub fn iter_root(&self) -> impl Iterator<Item = Object<'w, 's, '_, T>> {
         self.iter().filter(|object| object.is_root())
-        // self.root.iter().map(|instance| Object {
-        //     instance,
-        //     hierarchy: &self.hierarchy,
-        //     name: &self.name,
-        // })
     }
 
     pub fn contains(&self, entity: Entity) -> bool {
