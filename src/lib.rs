@@ -197,6 +197,30 @@ impl<T: Kind> PartialEq for Object<'_, '_, '_, T> {
 
 impl<T: Kind> Eq for Object<'_, '_, '_, T> {}
 
+impl<T: Kind> PartialEq<Instance<T>> for Object<'_, '_, '_, T> {
+    fn eq(&self, other: &Instance<T>) -> bool {
+        self.instance() == *other
+    }
+}
+
+impl<T: Kind> PartialEq<Object<'_, '_, '_, T>> for Instance<T> {
+    fn eq(&self, other: &Object<T>) -> bool {
+        *self == other.instance()
+    }
+}
+
+impl<T: Kind> PartialEq<Entity> for Object<'_, '_, '_, T> {
+    fn eq(&self, other: &Entity) -> bool {
+        self.entity() == *other
+    }
+}
+
+impl<T: Kind> PartialEq<Object<'_, '_, '_, T>> for Entity {
+    fn eq(&self, other: &Object<T>) -> bool {
+        *self == other.entity()
+    }
+}
+
 impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
