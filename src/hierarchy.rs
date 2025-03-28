@@ -34,7 +34,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn query_children<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'a Query<'_, '_, Q, F>,
+        query: &'a Query<Q, F>,
     ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
         self.children()
             .filter_map(move |object| query.get(object.entity()).ok())
@@ -42,14 +42,14 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn children_of_kind<'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<'_, '_, U>,
+        objects: &'a Objects<U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.children()
             .filter_map(move |object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
     }
 
-    fn find_child_of_kind<U: Kind>(&self, objects: &Objects<'_, '_, U>) -> Option<Self::Rebind<U>> {
+    fn find_child_of_kind<U: Kind>(&self, objects: &Objects<U>) -> Option<Self::Rebind<U>> {
         self.children()
             .find_map(|object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
@@ -72,7 +72,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn query_ancestors<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'a Query<'_, '_, Q, F>,
+        query: &'a Query<Q, F>,
     ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
         self.ancestors().filter_map(move |object| {
             let entity = object.entity();
@@ -82,7 +82,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn query_self_and_ancestors<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'a Query<'_, '_, Q, F>,
+        query: &'a Query<Q, F>,
     ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
         self.self_and_ancestors().filter_map(move |object| {
             let entity = object.entity();
@@ -92,7 +92,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn ancestors_of_kind<'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<'_, '_, U>,
+        objects: &'a Objects<U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.ancestors()
             .filter_map(move |object| objects.get(object.entity()).ok())
@@ -101,17 +101,14 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn self_and_ancestors_of_kind<'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<'_, '_, U>,
+        objects: &'a Objects<U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.self_and_ancestors()
             .filter_map(move |object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
     }
 
-    fn find_ancestor_of_kind<U: Kind>(
-        &self,
-        objects: &Objects<'_, '_, U>,
-    ) -> Option<Self::Rebind<U>> {
+    fn find_ancestor_of_kind<U: Kind>(&self, objects: &Objects<U>) -> Option<Self::Rebind<U>> {
         self.ancestors()
             .find_map(|object| objects.get(object.entity()).ok())
             .map(|object| self.rebind_as(object.instance()))
@@ -138,7 +135,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn descendants_of_kind_wide<'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<'_, '_, U>,
+        objects: &'a Objects<U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.descendants_wide()
             .filter_map(move |object| objects.get(object.entity()).ok())
@@ -147,7 +144,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn descendants_of_kind_deep<'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<'_, '_, U>,
+        objects: &'a Objects<U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.descendants_deep()
             .filter_map(move |object| objects.get(object.entity()).ok())
@@ -156,7 +153,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn self_and_descendants_of_kind_wide<'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<'_, '_, U>,
+        objects: &'a Objects<U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.self_and_descendants_wide()
             .filter_map(move |object| objects.get(object.entity()).ok())
@@ -165,7 +162,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn self_and_descendants_of_kind_deep<'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<'_, '_, U>,
+        objects: &'a Objects<U>,
     ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
         self.self_and_descendants_deep()
             .filter_map(move |object| objects.get(object.entity()).ok())
@@ -174,7 +171,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn query_descendants_wide<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'a Query<'_, '_, Q, F>,
+        query: &'a Query<Q, F>,
     ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
         self.descendants_wide().filter_map(move |object| {
             let entity = object.entity();
@@ -184,7 +181,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn query_descendants_deep<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'a Query<'_, '_, Q, F>,
+        query: &'a Query<Q, F>,
     ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
         self.descendants_deep().filter_map(move |object| {
             let entity = object.entity();
@@ -194,7 +191,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn query_self_and_descendants_wide<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'a Query<'_, '_, Q, F>,
+        query: &'a Query<Q, F>,
     ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
         self.self_and_descendants_wide().filter_map(move |object| {
             let entity = object.entity();
@@ -204,7 +201,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn query_self_and_descendants_deep<'a, Q: QueryData>(
         &'a self,
-        query: &'a Query<'_, '_, Q>,
+        query: &'a Query<Q>,
     ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
         self.self_and_descendants_deep().filter_map(move |object| {
             let entity = object.entity();
@@ -214,7 +211,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn find_descendant_of_kind_wide<U: Kind>(
         &self,
-        objects: &Objects<'_, '_, U>,
+        objects: &Objects<U>,
     ) -> Option<Self::Rebind<U>> {
         self.descendants_wide()
             .find_map(|object| objects.get(object.entity()).ok())
@@ -223,7 +220,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     fn find_descendant_of_kind_deep<U: Kind>(
         &self,
-        objects: &Objects<'_, '_, U>,
+        objects: &Objects<U>,
     ) -> Option<Self::Rebind<U>> {
         self.descendants_deep()
             .find_map(|object| objects.get(object.entity()).ok())
