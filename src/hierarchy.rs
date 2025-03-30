@@ -227,6 +227,17 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .map(|object| self.rebind_as(object.instance()))
     }
 
+    /// Returns the path to this object.
+    fn path(&self) -> String {
+        // TODO: Can this be optimized?
+        let mut tokens = self
+            .self_and_ancestors()
+            .map(|ancestor| ancestor.name().unwrap_or_default().to_string())
+            .collect::<Vec<_>>();
+        tokens.reverse();
+        tokens.join("/")
+    }
+
     /// Attempts to find an object by its path, relative to this one.
     ///
     /// # Usage

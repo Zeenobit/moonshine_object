@@ -372,109 +372,86 @@ mod tests {
             .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects.get(a).unwrap().find_by_path("").unwrap().entity();
+            let x = objects.get(a).unwrap().find_by_path("").unwrap();
             assert_eq!(a, x);
+            assert_eq!(x.path(), "A");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects.get(a).unwrap().find_by_path(".").unwrap().entity();
+            let x = objects.get(a).unwrap().find_by_path(".").unwrap();
             assert_eq!(a, x);
+            assert_eq!(x.path(), "A");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects.get(a).unwrap().find_by_path("B").unwrap().entity();
+            let x = objects.get(a).unwrap().find_by_path("B").unwrap();
             assert_eq!(b, x);
+            assert_eq!(x.path(), "A/B");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects
-                .get(a)
-                .unwrap()
-                .find_by_path("B/C")
-                .unwrap()
-                .entity();
+            let x = objects.get(a).unwrap().find_by_path("B/C").unwrap();
             assert_eq!(c, x);
+            assert_eq!(x.path(), "A/B/C");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects
-                .get(a)
-                .unwrap()
-                .find_by_path("B/D")
-                .unwrap()
-                .entity();
+            let x = objects.get(a).unwrap().find_by_path("B/D").unwrap();
             assert_eq!(d, x);
+            assert_eq!(x.path(), "A/B/D");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects
-                .get(a)
-                .unwrap()
-                .find_by_path("B/*")
-                .unwrap()
-                .entity();
+            let x = objects.get(a).unwrap().find_by_path("B/*").unwrap();
             assert_eq!(c, x);
+            assert_eq!(x.path(), "A/B/C");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects
-                .get(a)
-                .unwrap()
-                .find_by_path("*/D")
-                .unwrap()
-                .entity();
+            let x = objects.get(a).unwrap().find_by_path("*/D").unwrap();
             assert_eq!(d, x);
+            assert_eq!(x.path(), "A/B/D");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects
-                .get(a)
-                .unwrap()
-                .find_by_path("*/*")
-                .unwrap()
-                .entity();
+            let x = objects.get(a).unwrap().find_by_path("*/*").unwrap();
             assert_eq!(c, x);
+            assert_eq!(x.path(), "A/B/C");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects.get(b).unwrap().find_by_path("..").unwrap().entity();
+            let x = objects.get(b).unwrap().find_by_path("..").unwrap();
             assert_eq!(a, x);
+            assert_eq!(x.path(), "A");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects.get(c).unwrap().find_by_path("..").unwrap().entity();
+            let x = objects.get(c).unwrap().find_by_path("..").unwrap();
             assert_eq!(b, x);
+            assert_eq!(x.path(), "A/B");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects
-                .get(c)
-                .unwrap()
-                .find_by_path("../D")
-                .unwrap()
-                .entity();
+            let x = objects.get(c).unwrap().find_by_path("../D").unwrap();
             assert_eq!(d, x);
+            assert_eq!(x.path(), "A/B/D");
         })
         .unwrap();
 
         w.run_system_once(move |objects: Objects| {
-            let x = objects
-                .get(c)
-                .unwrap()
-                .find_by_path("../C")
-                .unwrap()
-                .entity();
+            let x = objects.get(c).unwrap().find_by_path("../C").unwrap();
             assert_eq!(c, x);
+            assert_eq!(x.path(), "A/B/C");
         })
         .unwrap();
     }
