@@ -1,6 +1,6 @@
 use moonshine_kind::prelude::*;
 
-use crate::{Object, ObjectInstance, ObjectRef};
+use crate::{Object, ObjectRef};
 
 pub trait ObjectName {
     /// Returns the [`Name`] of this object.

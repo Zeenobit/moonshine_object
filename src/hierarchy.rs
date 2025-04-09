@@ -2,7 +2,7 @@ use bevy_ecs::prelude::*;
 use bevy_ecs::query::{QueryData, QueryFilter, QueryItem};
 use moonshine_kind::{prelude::*, Any};
 
-use crate::{Object, ObjectInstance, ObjectName, ObjectRebind, ObjectRef, Objects};
+use crate::{Object, ObjectName, ObjectRebind, ObjectRef, Objects};
 
 pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     fn parent(&self) -> Option<Self::Rebind<Any>>;

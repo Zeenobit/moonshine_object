@@ -1,9 +1,9 @@
 use bevy_ecs::prelude::*;
 use moonshine_kind::{prelude::*, Any, CastInto};
 
-use crate::{Object, ObjectHierarchy, ObjectInstance, ObjectRef};
+use crate::{Object, ObjectHierarchy, ObjectRef};
 
-pub trait ObjectRebind<T: Kind = Any>: ObjectInstance<T> + Sized {
+pub trait ObjectRebind<T: Kind = Any>: AsInstance<T> + Sized {
     type Rebind<U: Kind>: ObjectHierarchy<U>;
 
     /// Rebinds this object to an [`Instance`] of another [`Kind`].

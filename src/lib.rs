@@ -13,11 +13,12 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
+    pub use super::AsInstance;
     pub use super::{Object, ObjectRef, Objects, RootObjects};
-    pub use super::{ObjectHierarchy, ObjectInstance, ObjectName, ObjectRebind};
+    pub use super::{ObjectHierarchy, ObjectName, ObjectRebind};
 }
 
-pub use moonshine_kind::{Any, CastInto, Kind};
+pub use moonshine_kind::{Any, AsInstance, CastInto, Kind};
 
 /// A [`SystemParam`] similar to [`Query`] which provides [`Object<T>`] access for its items.
 #[derive(SystemParam)]
@@ -241,6 +242,12 @@ impl<T: Kind> fmt::Display for Object<'_, '_, '_, T> {
     }
 }
 
+impl<T: Kind> AsInstance<T> for Object<'_, '_, '_, T> {
+    fn instance(&self) -> Instance<T> {
+        self.instance
+    }
+}
+
 pub struct ObjectRef<'w, 's, 'a, T: Kind = Any>(EntityRef<'a>, Object<'w, 's, 'a, T>);
 
 impl<T: Component> Deref for ObjectRef<'_, '_, '_, T> {
@@ -311,6 +318,12 @@ impl<T: Kind> PartialEq for ObjectRef<'_, '_, '_, T> {
 
 impl<T: Kind> Eq for ObjectRef<'_, '_, '_, T> {}
 
+impl<T: Kind> AsInstance<T> for ObjectRef<'_, '_, '_, T> {
+    fn instance(&self) -> Instance<T> {
+        self.1.instance()
+    }
+}
+
 impl<T: Kind> fmt::Debug for ObjectRef<'_, '_, '_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
@@ -332,12 +345,10 @@ impl<T: Kind> fmt::Display for ObjectRef<'_, '_, '_, T> {
 }
 
 mod hierarchy;
-mod instance;
 mod name;
 mod rebind;
 
 pub use hierarchy::*;
-pub use instance::*;
 pub use name::*;
 pub use rebind::*;
 
