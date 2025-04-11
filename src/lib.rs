@@ -13,12 +13,12 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::AsInstance;
+    pub use super::GetInstance;
     pub use super::{Object, ObjectRef, Objects, RootObjects};
     pub use super::{ObjectHierarchy, ObjectName, ObjectRebind};
 }
 
-pub use moonshine_kind::{Any, AsInstance, CastInto, Kind};
+pub use moonshine_kind::{Any, CastInto, GetInstance, Kind};
 
 /// A [`SystemParam`] similar to [`Query`] which provides [`Object<T>`] access for its items.
 #[derive(SystemParam)]
@@ -242,7 +242,7 @@ impl<T: Kind> fmt::Display for Object<'_, '_, '_, T> {
     }
 }
 
-impl<T: Kind> AsInstance<T> for Object<'_, '_, '_, T> {
+impl<T: Kind> GetInstance<T> for Object<'_, '_, '_, T> {
     fn instance(&self) -> Instance<T> {
         self.instance
     }
@@ -318,7 +318,7 @@ impl<T: Kind> PartialEq for ObjectRef<'_, '_, '_, T> {
 
 impl<T: Kind> Eq for ObjectRef<'_, '_, '_, T> {}
 
-impl<T: Kind> AsInstance<T> for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind> GetInstance<T> for ObjectRef<'_, '_, '_, T> {
     fn instance(&self) -> Instance<T> {
         self.1.instance()
     }
