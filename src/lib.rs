@@ -13,12 +13,11 @@ use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
 pub mod prelude {
-    pub use super::GetInstance;
     pub use super::{Object, ObjectRef, Objects, RootObjects};
     pub use super::{ObjectHierarchy, ObjectName, ObjectRebind};
 }
 
-pub use moonshine_kind::{Any, CastInto, GetInstance, Kind};
+pub use moonshine_kind::{Any, CastInto, Kind};
 
 /// A [`SystemParam`] similar to [`Query`] which provides [`Object<T>`] access for its items.
 #[derive(SystemParam)]
@@ -159,6 +158,14 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
             name: base.name,
         }
     }
+
+    pub fn instance(&self) -> Instance<T> {
+        self.instance
+    }
+
+    pub fn entity(&self) -> Entity {
+        self.instance.entity()
+    }
 }
 
 impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
@@ -259,14 +266,6 @@ impl<T: Component> Deref for ObjectRef<'_, '_, '_, T> {
 }
 
 impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
-    pub fn get<U: Component>(&self) -> Option<&U> {
-        self.0.get::<U>()
-    }
-
-    pub fn contains<U: Component>(&self) -> bool {
-        self.0.contains::<U>()
-    }
-
     /// Creates a new [`ObjectRef<T>`] from an [`ObjectRef<Any>`].
     ///
     /// This is semantically equivalent to an unsafe downcast.
@@ -275,6 +274,22 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     /// Assumes `base` is of [`Kind`] `T`.
     pub unsafe fn from_base_unchecked(base: ObjectRef<'w, 's, 'a>) -> Self {
         Self(base.0, Object::from_base_unchecked(base.1))
+    }
+
+    pub fn get<U: Component>(&self) -> Option<&U> {
+        self.0.get::<U>()
+    }
+
+    pub fn contains<U: Component>(&self) -> bool {
+        self.0.contains::<U>()
+    }
+
+    pub fn instance(&self) -> Instance<T> {
+        self.1.instance()
+    }
+
+    pub fn entity(&self) -> Entity {
+        self.1.instance.entity()
     }
 }
 
