@@ -2,13 +2,11 @@
 
 use std::{fmt, ops::Deref};
 
-use bevy_core::Name;
 use bevy_ecs::{
     prelude::*,
     query::{QueryEntityError, QueryFilter, QuerySingleError},
     system::SystemParam,
 };
-use bevy_hierarchy::Parent;
 use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
@@ -87,15 +85,10 @@ where
     }
 
     #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
-    pub fn get_root(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
-        self.get(entity).and_then(|object| {
-            if object.is_root() {
-                Ok(object)
-            } else {
-                // NOTE: Not the most accurate error data, but the function is deprecated. Will be removed soon.
-                Err(QueryEntityError::NoSuchEntity(entity))
-            }
-        })
+    pub fn get_root(&self, entity: Entity) -> Option<Object<'w, 's, '_, T>> {
+        self.get(entity)
+            .ok()
+            .and_then(|object| if object.is_root() { Some(object) } else { None })
     }
 
     pub fn get_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T>> {
@@ -103,7 +96,7 @@ where
     }
 
     pub fn get_single(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
-        self.instance.get_single().map(|instance| Object {
+        self.instance.single().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
             name: &self.name,
@@ -135,7 +128,7 @@ where
     }
 }
 
-pub type RootObjects<'w, 's, T = Any, F = ()> = Objects<'w, 's, T, (F, Without<Parent>)>;
+pub type RootObjects<'w, 's, T = Any, F = ()> = Objects<'w, 's, T, (F, Without<ChildOf>)>;
 
 /// Represents an [`Entity`] of [`Kind`] `T` with hierarchy and name information.
 pub struct Object<'w, 's, 'a, T: Kind = Any> {
@@ -371,7 +364,7 @@ pub use rebind::*;
 mod tests {
     use super::*;
 
-    use bevy::{ecs::system::RunSystemOnce, prelude::*};
+    use bevy::ecs::system::RunSystemOnce;
 
     #[test]
     fn find_by_path() {
