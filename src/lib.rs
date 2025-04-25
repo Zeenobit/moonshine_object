@@ -1,19 +1,18 @@
 #![doc = include_str!("../README.md")]
 
-use std::{fmt, ops::Deref};
-
-use bevy_ecs::{
-    prelude::*,
-    query::{QueryEntityError, QueryFilter, QuerySingleError},
-    system::SystemParam,
-};
-use moonshine_kind::prelude::*;
-use moonshine_util::hierarchy::HierarchyQuery;
-
 pub mod prelude {
     pub use super::{Object, ObjectRef, Objects, RootObjects};
     pub use super::{ObjectHierarchy, ObjectName, ObjectRebind};
 }
+
+use std::fmt;
+use std::ops::Deref;
+
+use bevy_ecs::prelude::*;
+use bevy_ecs::query::{QueryEntityError, QueryFilter, QuerySingleError};
+use bevy_ecs::system::SystemParam;
+use moonshine_kind::prelude::*;
+use moonshine_util::hierarchy::HierarchyQuery;
 
 pub use moonshine_kind::{Any, CastInto, Kind};
 

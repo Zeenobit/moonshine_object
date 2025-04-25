@@ -86,7 +86,7 @@ fn setup_bird(birds: Objects<Bird, Added<Flying>>, mut commands: Commands) {
 
 ## Usage
 
-### `Objects<T>`
+### [`Objects<T>`]
 
 Use [`Objects<T>`] as a system parameter to access all [`Object<T>`] instances.
 
@@ -128,10 +128,10 @@ fn update_flying_birds(birds: Objects<Bird, With<Flying>>) {
 Internally, [`Objects<T>`] is just a thin wrapper around some common queries:
 
 - `Query<Instance<T>>`
-- `Query<&Parent>` / `Query<&Children>`
+- `Query<&ChildOf>` / `Query<&Children>`
 - `Query<&Name>`
 
-### `Object<T>`
+### [`Object<T>`]
 
 Each [`Object<T>`] is a reference to an [`Entity`] with type, name, and hierarchy information. This provides a convenient way to pass this data between functions:
 
@@ -205,6 +205,17 @@ fn handle_hunger(bird: Object<Bird>) {
 ```
 
 Any [`Object<T>`] is safely convertible to [`Object<Any>`][`Object`].
+
+## Installation
+
+Add the following to your `Cargo.toml`:
+
+```toml
+[dependencies]
+moonshine-object = "0.2.2"
+```
+
+This crate is also included as part of [🍸 Moonshine Core](https://github.com/Zeenobit/moonshine_core).
 
 ## Support
 
