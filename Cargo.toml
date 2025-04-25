@@ -1,6 +1,6 @@
 [package]
 name = "moonshine-object"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 license = "MIT"
 description = "Bevy Entities are good. Objects are better!"
@@ -12,8 +12,8 @@ repository = "https://github.com/Zeenobit/moonshine_object"
 
 [dependencies]
 bevy_ecs = "0.16.*"
-moonshine-kind = { version = "0.2.1", path = "../kind" }
-moonshine-util = { version = "0.2.6", path = "../util" }
+moonshine-kind = { version = "0.2.2", path = "../kind" }
+moonshine-util = { version = "0.2.7", path = "../util" }
 
 [dev-dependencies]
 bevy = "0.16.*"
