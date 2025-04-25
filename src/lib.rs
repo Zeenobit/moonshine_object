@@ -242,7 +242,7 @@ impl<T: Kind> fmt::Display for Object<'_, '_, '_, T> {
     }
 }
 
-impl<T: Kind> GetInstance<T> for Object<'_, '_, '_, T> {
+impl<T: Kind> ContainsInstance<T> for Object<'_, '_, '_, T> {
     fn instance(&self) -> Instance<T> {
         self.instance
     }
@@ -326,7 +326,7 @@ impl<T: Kind> PartialEq for ObjectRef<'_, '_, '_, T> {
 
 impl<T: Kind> Eq for ObjectRef<'_, '_, '_, T> {}
 
-impl<T: Kind> GetInstance<T> for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind> ContainsInstance<T> for ObjectRef<'_, '_, '_, T> {
     fn instance(&self) -> Instance<T> {
         self.1.instance()
     }
