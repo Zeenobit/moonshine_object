@@ -2,6 +2,9 @@ use moonshine_kind::prelude::*;
 
 use crate::{Object, ObjectRef};
 
+/// [`Object`] methods related to naming.
+///
+/// These methods are available to any [`Object<T>`] or [`ObjectRef<T>`] type.
 pub trait ObjectName {
     /// Returns the [`Name`] of this object.
     ///
@@ -23,7 +26,7 @@ pub trait ObjectName {
     /// }
     /// ```
     ///
-    /// [`Name`]: https://docs.rs/bevy/latest/bevy/core/struct.Name.html
+    /// [`Name`]:bevy_ecs::prelude::Name
     fn name(&self) -> Option<&str>;
 }
 

@@ -1,6 +1,9 @@
 #![doc = include_str!("../README.md")]
+#![warn(missing_docs)]
 
 pub mod prelude {
+    //! Prelude module to import all necessary traits and types for working with objects.
+
     pub use super::{Object, ObjectRef, Objects, RootObjects};
     pub use super::{ObjectHierarchy, ObjectName, ObjectRebind};
 }
@@ -23,8 +26,11 @@ where
     T: Kind,
     F: 'static + QueryFilter,
 {
+    /// [`Query`] used to filter instances of the given [`Kind`] `T`.
     pub instance: Query<'w, 's, Instance<T>, F>,
+    /// [`HierarchyQuery`] used to traverse the object hierarchy.
     pub hierarchy: HierarchyQuery<'w, 's>,
+    /// [`Query`] to get names of objects, mainly used for for hierarchy traversal by path and debugging.
     pub name: Query<'w, 's, &'static Name>,
 }
 
@@ -48,15 +54,18 @@ where
         self.iter().filter(|object| object.is_root())
     }
 
+    /// Returns true if the given [`Entity`] is a valid [`Object<T>`].
     pub fn contains(&self, entity: Entity) -> bool {
         self.instance.contains(entity)
     }
 
     #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
+    #[doc(hidden)]
     pub fn contains_root(&self, entity: Entity) -> bool {
         self.get(entity).is_ok_and(|object| object.is_root())
     }
 
+    /// Returns an iterator over all [`ObjectRef`] instances of [`Kind`] `T` which match the [`QueryFilter`] `F`.
     pub fn iter_ref<'a>(
         &'a self,
         world: &'a World,
@@ -66,6 +75,7 @@ where
     }
 
     #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
+    #[doc(hidden)]
     pub fn iter_root_ref<'a>(
         &'a self,
         world: &'a World,
@@ -74,7 +84,7 @@ where
             .map(|object: Object<T>| ObjectRef(world.entity(object.entity()), object))
     }
 
-    /// Gets the [`Object`] of [`Kind`] `T` from an [`Entity`], if it matches.
+    /// Returns an [`Object<T>`] from an [`Entity`], if it matches [`QueryFilter`] `F`.
     pub fn get(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
         self.instance.get(entity).map(|instance| Object {
             instance,
@@ -84,16 +94,19 @@ where
     }
 
     #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
+    #[doc(hidden)]
     pub fn get_root(&self, entity: Entity) -> Option<Object<'w, 's, '_, T>> {
         self.get(entity)
             .ok()
             .and_then(|object| if object.is_root() { Some(object) } else { None })
     }
 
+    /// Returns an [`ObjectRef<T>`] from an [`EntityRef`], if it matches [`QueryFilter`] `F`.
     pub fn get_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T>> {
         Some(ObjectRef(entity, self.get(entity.id()).ok()?))
     }
 
+    /// Returns an [`Object<T>`], if it exists as a single instance.
     pub fn get_single(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
         self.instance.single().map(|instance| Object {
             instance,
@@ -103,6 +116,7 @@ where
     }
 
     #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
+    #[doc(hidden)]
     pub fn get_single_root(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
         self.get_single().and_then(|object| {
             if object.is_root() {
@@ -114,6 +128,7 @@ where
         })
     }
 
+    /// Returns an [`ObjectRef<T>`] from an [`EntityRef`], if it exists as a single instance.
     pub fn get_single_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T>> {
         Some(ObjectRef(entity, self.get_single().ok()?))
     }
@@ -127,6 +142,7 @@ where
     }
 }
 
+/// Ergonomic type alias for all [`Objects`] of [`Kind`] `T` without a parent.
 pub type RootObjects<'w, 's, T = Any, F = ()> = Objects<'w, 's, T, (F, Without<ChildOf>)>;
 
 /// Represents an [`Entity`] of [`Kind`] `T` with hierarchy and name information.
@@ -151,16 +167,19 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         }
     }
 
+    /// Returns the object as an [`Instance<T>`].
     pub fn instance(&self) -> Instance<T> {
         self.instance
     }
 
+    /// Returns the object as an [`Entity`].
     pub fn entity(&self) -> Entity {
         self.instance.entity()
     }
 }
 
 impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
+    /// Creates a new [`Object<T>`] from an [`Object<Any>`] if it is a valid instance of `T`.
     pub fn from_base(world: &World, object: Object<'w, 's, 'a>) -> Option<Object<'w, 's, 'a, T>> {
         let entity = world.entity(object.entity());
         let instance = Instance::<T>::from_entity(entity)?;
@@ -247,15 +266,8 @@ impl<T: Kind> ContainsInstance<T> for Object<'_, '_, '_, T> {
     }
 }
 
+/// Similar to [`EntityRef`] with the benefits of [`Object<T>`].
 pub struct ObjectRef<'w, 's, 'a, T: Kind = Any>(EntityRef<'a>, Object<'w, 's, 'a, T>);
-
-impl<T: Component> Deref for ObjectRef<'_, '_, '_, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.get::<T>().unwrap()
-    }
-}
 
 impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     /// Creates a new [`ObjectRef<T>`] from an [`ObjectRef<Any>`].
@@ -268,20 +280,14 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
         Self(base.0, Object::from_base_unchecked(base.1))
     }
 
+    /// See [`EntityRef::get`].
     pub fn get<U: Component>(&self) -> Option<&U> {
         self.0.get::<U>()
     }
 
+    /// See [`EntityRef::contains`].
     pub fn contains<U: Component>(&self) -> bool {
         self.0.contains::<U>()
-    }
-
-    pub fn instance(&self) -> Instance<T> {
-        self.1.instance()
-    }
-
-    pub fn entity(&self) -> Entity {
-        self.1.instance.entity()
     }
 }
 
@@ -328,6 +334,14 @@ impl<T: Kind> Eq for ObjectRef<'_, '_, '_, T> {}
 impl<T: Kind> ContainsInstance<T> for ObjectRef<'_, '_, '_, T> {
     fn instance(&self) -> Instance<T> {
         self.1.instance()
+    }
+}
+
+impl<T: Component> Deref for ObjectRef<'_, '_, '_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.get::<T>().unwrap()
     }
 }
 

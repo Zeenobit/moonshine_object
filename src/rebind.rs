@@ -3,7 +3,11 @@ use moonshine_kind::{prelude::*, Any, CastInto};
 
 use crate::{Object, ObjectHierarchy, ObjectRef};
 
+/// [`Object`] methods related to rebinding and casting.
+///
+/// These methods are available to any [`Object<T>`] or [`ObjectRef<T>`] type.
 pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
+    #[doc(hidden)]
     type Rebind<U: Kind>: ObjectHierarchy<U>;
 
     /// Rebinds this object to an [`Instance`] of another [`Kind`].
