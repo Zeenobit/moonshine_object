@@ -36,9 +36,9 @@ fn setup_bird(
     for entity in query.iter() {
         if let Ok(children) = children_query.get(entity) {
             for child in children.iter() {
-                if let Ok(name) = name.get(*child) {
+                if let Ok(name) = name.get(child) {
                     if name.as_str() == "Wings" {
-                        if let Ok(wings) = children_query.get(*child) {
+                        if let Ok(wings) = children_query.get(child) {
                             for wing in wings.iter() {
                                 // TODO: Flap! Flap!
                             }
@@ -51,9 +51,7 @@ fn setup_bird(
 }
 ```
 
-This code is intentionally verbose to show the hierarchy complexity.
-
-This crate tries to make these situations more ergonomic by introducing [`Object<T>`].
+Although, this code is intentionally verbose to show the hierarchy complexity, this crate tries to make these situations more ergonomic by introducing [`Object<T>`].
 
 It behaves like an [`Entity`] or [`Instance<T>`] with some extra features:
 
