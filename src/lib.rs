@@ -48,35 +48,13 @@ where
         })
     }
 
-    /// Iterates over all [`Object`]s of [`Kind`] `T` which match the [`QueryFilter`] `F`.
-    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
-    pub fn iter_root(&self) -> impl Iterator<Item = Object<'w, 's, '_, T>> {
-        self.iter().filter(|object| object.is_root())
-    }
-
     /// Returns true if the given [`Entity`] is a valid [`Object<T>`].
     pub fn contains(&self, entity: Entity) -> bool {
         self.instance.contains(entity)
     }
 
-    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
-    #[doc(hidden)]
-    pub fn contains_root(&self, entity: Entity) -> bool {
-        self.get(entity).is_ok_and(|object| object.is_root())
-    }
-
     /// Returns an iterator over all [`ObjectRef`] instances of [`Kind`] `T` which match the [`QueryFilter`] `F`.
     pub fn iter_ref<'a>(
-        &'a self,
-        world: &'a World,
-    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, T>> {
-        self.iter()
-            .map(|object: Object<T>| ObjectRef(world.entity(object.entity()), object))
-    }
-
-    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
-    #[doc(hidden)]
-    pub fn iter_root_ref<'a>(
         &'a self,
         world: &'a World,
     ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, T>> {
@@ -93,14 +71,6 @@ where
         })
     }
 
-    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
-    #[doc(hidden)]
-    pub fn get_root(&self, entity: Entity) -> Option<Object<'w, 's, '_, T>> {
-        self.get(entity)
-            .ok()
-            .and_then(|object| if object.is_root() { Some(object) } else { None })
-    }
-
     /// Returns an [`ObjectRef<T>`] from an [`EntityRef`], if it matches [`QueryFilter`] `F`.
     pub fn get_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T>> {
         Some(ObjectRef(entity, self.get(entity.id()).ok()?))
@@ -112,19 +82,6 @@ where
             instance,
             hierarchy: &self.hierarchy,
             name: &self.name,
-        })
-    }
-
-    #[deprecated(since = "0.2.1", note = "use `RootObjects` instead")]
-    #[doc(hidden)]
-    pub fn get_single_root(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
-        self.get_single().and_then(|object| {
-            if object.is_root() {
-                Ok(object)
-            } else {
-                // NOTE: Not the most accurate error data, but the function is deprecated. Will be removed soon.
-                Err(QuerySingleError::NoEntities("Object is not root"))
-            }
         })
     }
 
