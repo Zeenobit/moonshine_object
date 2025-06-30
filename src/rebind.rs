@@ -1,5 +1,5 @@
 use bevy_ecs::prelude::*;
-use moonshine_kind::{prelude::*, Any, KindOf};
+use moonshine_kind::{prelude::*, Any, CastInto};
 
 use crate::{Object, ObjectHierarchy, ObjectRef};
 
@@ -154,7 +154,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// ```
     fn cast_into<U: Kind>(self) -> Self::Rebind<U>
     where
-        T: KindOf<U>,
+        T: CastInto<U>,
     {
         self.rebind_as(self.instance().cast_into())
     }

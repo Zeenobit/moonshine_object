@@ -17,7 +17,7 @@ use bevy_ecs::system::SystemParam;
 use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
-pub use moonshine_kind::{Any, Kind, KindOf};
+pub use moonshine_kind::{Any, Kind, CastInto};
 
 /// A [`SystemParam`] similar to [`Query`] which provides [`Object<T>`] access for its items.
 #[derive(SystemParam)]
