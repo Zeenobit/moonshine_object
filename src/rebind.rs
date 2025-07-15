@@ -127,8 +127,8 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// }
     ///
     /// // Define related kinds:
-    /// kind!(Apple is Fruit);
-    /// kind!(Orange is Fruit);
+    /// impl CastInto<Fruit> for Apple {}
+    /// impl CastInto<Fruit> for Orange {}
     ///
     /// let mut app = App::new();
     /// // ...

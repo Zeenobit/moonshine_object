@@ -182,7 +182,7 @@ impl Kind for Creature {
 }
 
 // Therefore, all birds may safely be cast into creatures:
-kind!(Bird is Creature);
+impl CastInto<Creature> for Bird {}
 
 // Birds can chirp.
 fn chirp(bird: Object<Bird>) {
