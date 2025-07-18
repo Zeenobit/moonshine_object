@@ -105,7 +105,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// This is useful when you have an [`Object<T>`] but you want an [`Object<U>`]
     /// where [`Kind`] `T` is safely convertible to `U`.
     ///
-    /// See [`kind!`] for more information on kind conversion.
+    /// See [`CastInto`] for more information on kind conversion.
     ///
     /// # Example
     /// ```
