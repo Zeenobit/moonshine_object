@@ -192,7 +192,7 @@ impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for Object<'w, 's, 'a, T> {
         Object {
             instance,
             hierarchy: self.hierarchy,
-            name: self.name,
+            nametags: self.nametags,
         }
     }
 }

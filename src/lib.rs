@@ -5,8 +5,13 @@ pub mod prelude {
     //! Prelude module to import all necessary traits and types for working with objects.
 
     pub use super::{Object, ObjectRef, Objects, RootObjects};
-    pub use super::{ObjectHierarchy, ObjectName, ObjectRebind};
+    pub use super::{ObjectHierarchy, ObjectName, ObjectRebind, ObjectTags};
 }
+
+mod hierarchy;
+mod name;
+mod rebind;
+mod tags;
 
 use std::fmt;
 use std::ops::Deref;
@@ -17,7 +22,13 @@ use bevy_ecs::system::SystemParam;
 use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
 
-pub use moonshine_kind::{Any, Kind, CastInto};
+pub use moonshine_kind::{Any, CastInto, Kind};
+pub use moonshine_tag::{Tag, TagFilter, Tags};
+
+pub use hierarchy::*;
+pub use name::*;
+pub use rebind::*;
+pub use tags::*;
 
 /// A [`SystemParam`] similar to [`Query`] which provides [`Object<T>`] access for its items.
 #[derive(SystemParam)]
@@ -30,8 +41,8 @@ where
     pub instance: Query<'w, 's, Instance<T>, F>,
     /// [`HierarchyQuery`] used to traverse the object hierarchy.
     pub hierarchy: HierarchyQuery<'w, 's>,
-    /// [`Query`] to get names of objects, mainly used for for hierarchy traversal by path and debugging.
-    pub name: Query<'w, 's, &'static Name>,
+    /// [`Query`] to identify objects by name or tags, mainly used for for hierarchy traversal and searching.
+    pub nametags: Query<'w, 's, AnyOf<(&'static Name, &'static Tags)>>,
 }
 
 impl<'w, 's, T, F> Objects<'w, 's, T, F>
@@ -44,7 +55,7 @@ where
         self.instance.iter().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
-            name: &self.name,
+            nametags: &self.nametags,
         })
     }
 
@@ -67,7 +78,7 @@ where
         self.instance.get(entity).map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
-            name: &self.name,
+            nametags: &self.nametags,
         })
     }
 
@@ -81,7 +92,7 @@ where
         self.instance.single().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
-            name: &self.name,
+            nametags: &self.nametags,
         })
     }
 
@@ -106,7 +117,7 @@ pub type RootObjects<'w, 's, T = Any, F = ()> = Objects<'w, 's, T, (F, Without<C
 pub struct Object<'w, 's, 'a, T: Kind = Any> {
     instance: Instance<T>,
     hierarchy: &'a HierarchyQuery<'w, 's>,
-    name: &'a Query<'w, 's, &'static Name>,
+    nametags: &'a Query<'w, 's, AnyOf<(&'static Name, &'static Tags)>>,
 }
 
 impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
@@ -120,7 +131,7 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
         Self {
             instance: base.instance.cast_into_unchecked(),
             hierarchy: base.hierarchy,
-            name: base.name,
+            nametags: base.nametags,
         }
     }
 
@@ -321,14 +332,6 @@ impl<T: Kind> fmt::Display for ObjectRef<'_, '_, '_, T> {
         }
     }
 }
-
-mod hierarchy;
-mod name;
-mod rebind;
-
-pub use hierarchy::*;
-pub use name::*;
-pub use rebind::*;
 
 #[cfg(test)]
 mod tests {

@@ -32,7 +32,11 @@ pub trait ObjectName {
 
 impl<T: Kind> ObjectName for Object<'_, '_, '_, T> {
     fn name(&self) -> Option<&str> {
-        self.name.get(self.entity()).ok().map(|name| name.as_str())
+        self.nametags
+            .get(self.entity())
+            .ok()
+            .map(|(name, _tags)| name.map(|name| name.as_str()))
+            .flatten()
     }
 }
 
