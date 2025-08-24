@@ -101,12 +101,20 @@ where
         Some(ObjectRef(entity, self.get_single().ok()?))
     }
 
-    /// Gets the [`Object`] of [`Kind`] `T` from an [`Instance`].
+    /// Return an [`Object`] of [`Kind`] `T` from an [`Instance`].
     ///
     /// # Safety
     /// Assumes `instance` is a valid [`Instance`] of [`Kind`] `T`.
     pub fn instance(&self, instance: Instance<T>) -> Object<'w, 's, '_, T> {
         self.get(instance.entity()).expect("instance must be valid")
+    }
+
+    /// Return an [`Object`] of [`Kind`] `T` from an [`Instance`].
+    pub fn get_instance(
+        &self,
+        instance: Instance<T>,
+    ) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
+        self.get(instance.entity())
     }
 }
 
