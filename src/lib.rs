@@ -160,7 +160,7 @@ impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
         let entity = world.entity(object.entity());
         let instance = Instance::<T>::from_entity(entity)?;
         // SAFE: Entity was just checked to a valid instance of T.
-        Some(object.rebind_as(instance))
+        Some(unsafe { object.rebind_as(instance) })
     }
 }
 
@@ -184,8 +184,8 @@ impl<T: Kind> From<Object<'_, '_, '_, T>> for Instance<T> {
     }
 }
 
-impl<T: Kind> PartialEq for Object<'_, '_, '_, T> {
-    fn eq(&self, other: &Self) -> bool {
+impl<T: Kind, U: Kind> PartialEq<Object<'_, '_, '_, U>> for Object<'_, '_, '_, T> {
+    fn eq(&self, other: &Object<U>) -> bool {
         self.instance == other.instance
     }
 }

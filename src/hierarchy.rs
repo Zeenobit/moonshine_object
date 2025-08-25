@@ -15,12 +15,18 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     fn root(&self) -> Self::Rebind<Any> {
         self.ancestors()
             .last()
-            .unwrap_or_else(|| self.rebind_any(self.entity()))
+            // SAFE: If this object is valid, then so must be its root
+            .unwrap_or_else(|| unsafe { self.rebind_any(self.entity()) })
     }
 
     /// Returns true if this object is the root of its hierarchy.
     fn is_root(&self) -> bool {
         self.parent().is_none()
+    }
+
+    /// Returns true if this object is related to the given [`Entity`] (i.e. they share the same root).
+    fn is_related_to<U: Kind>(&self, other: &Object<U>) -> bool {
+        self.root().entity() == other.root().entity()
     }
 
     /// Returns true if this object is a child of another.
@@ -52,20 +58,21 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     }
 
     /// Returns an iterator over all children of this object which are of the given kind.
-    fn children_of_kind<'a, U: Kind>(
+    fn children_of_kind<'w, 's, 'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<U>,
-    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> + 'a {
         self.children()
             .filter_map(move |object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Returns the first child of this object which is of the given kind, if it exists.
-    fn find_child_of_kind<U: Kind>(&self, objects: &Objects<U>) -> Option<Self::Rebind<U>> {
+    fn find_child_of_kind<'w, 's, 'a, U: Kind>(
+        &self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> Option<Object<'w, 's, 'a, U>> {
         self.children()
             .find_map(|object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Returns an iterator over all ancestors of this object.
@@ -73,15 +80,15 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     /// Returns an iterator over this object and all its ancestors.
     fn self_and_ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        std::iter::once(self.rebind_any(self.entity())).chain(self.ancestors())
+        std::iter::once(self.as_any()).chain(self.ancestors())
     }
 
     /// Returns true if this object is an ancestor of the given entity.
-    fn is_ancestor_of(&self, entity: Entity) -> bool
+    fn is_ancestor_of<U: Kind>(&self, other: &Object<U>) -> bool
     where
         Self::Rebind<Any>: ObjectHierarchy<Any>,
     {
-        self.rebind_any(entity)
+        other
             .ancestors()
             .any(|ancestor| ancestor.entity() == self.entity())
     }
@@ -109,30 +116,30 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     }
 
     /// Returns an iterator over all ancestors of this object which are of the given kind.
-    fn ancestors_of_kind<'a, U: Kind>(
+    fn ancestors_of_kind<'w, 's, 'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<U>,
-    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
         self.ancestors()
             .filter_map(move |object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Returns an iterator over this object and all its ancestors which are of the given kind.
-    fn self_and_ancestors_of_kind<'a, U: Kind>(
+    fn self_and_ancestors_of_kind<'w, 's, 'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<U>,
-    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
         self.self_and_ancestors()
             .filter_map(move |object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Returns the first ancestor of this object which is of the given kind, if it exists.
-    fn find_ancestor_of_kind<U: Kind>(&self, objects: &Objects<U>) -> Option<Self::Rebind<U>> {
+    fn find_ancestor_of_kind<'w, 's, 'a, U: Kind>(
+        &self,
+        objects: &'a Objects<'w, 's, U>,
+    ) -> Option<Object<'w, 's, 'a, U>> {
         self.ancestors()
             .find_map(|object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Returns an iterator over all descendants of this object in breadth-first order.
@@ -143,12 +150,12 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
 
     /// Returns an iterator over this object and all its descendants in breadth-first order.
     fn self_and_descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        std::iter::once(self.rebind_any(self.entity())).chain(self.descendants_wide())
+        std::iter::once(self.as_any()).chain(self.descendants_wide())
     }
 
     /// Returns an iterator over this object and all its descendants in depth-first order.
     fn self_and_descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        std::iter::once(self.rebind_any(self.entity())).chain(self.descendants_deep())
+        std::iter::once(self.as_any()).chain(self.descendants_deep())
     }
 
     /// Returns true if this object is a descendant of the given entity.
@@ -160,43 +167,39 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     }
 
     /// Queries the descendants of this object in breadth-first order.
-    fn descendants_of_kind_wide<'a, U: Kind>(
+    fn descendants_of_kind_wide<'w, 's, 'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<U>,
-    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
         self.descendants_wide()
             .filter_map(move |object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Queries the descendants of this object in depth-first order.
-    fn descendants_of_kind_deep<'a, U: Kind>(
+    fn descendants_of_kind_deep<'w, 's, 'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<U>,
-    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
         self.descendants_deep()
             .filter_map(move |object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Queries this object and all its descendants in breadth-first order.
-    fn self_and_descendants_of_kind_wide<'a, U: Kind>(
+    fn self_and_descendants_of_kind_wide<'w, 's, 'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<U>,
-    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
         self.self_and_descendants_wide()
             .filter_map(move |object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Queries this object and all its descendants in depth-first order.
-    fn self_and_descendants_of_kind_deep<'a, U: Kind>(
+    fn self_and_descendants_of_kind_deep<'w, 's, 'a, U: Kind>(
         &'a self,
-        objects: &'a Objects<U>,
-    ) -> impl Iterator<Item = Self::Rebind<U>> + 'a {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> impl Iterator<Item = Object<'w, 's, 'a, U>> {
         self.self_and_descendants_deep()
             .filter_map(move |object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Queries the descendants of this object in breadth-first order.
@@ -256,23 +259,21 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     }
 
     /// Returns the first descendant of this object (breadth-first order) which is of the given kind, if it exists.
-    fn find_descendant_of_kind_wide<U: Kind>(
+    fn find_descendant_of_kind_wide<'w, 's, 'a, U: Kind>(
         &self,
-        objects: &Objects<U>,
-    ) -> Option<Self::Rebind<U>> {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> Option<Object<'w, 's, 'a, U>> {
         self.descendants_wide()
             .find_map(|object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Returns the first descendant of this object (depth-first order) which is of the given kind, if it exists.
-    fn find_descendant_of_kind_deep<U: Kind>(
+    fn find_descendant_of_kind_deep<'w, 's, 'a, U: Kind>(
         &self,
-        objects: &Objects<U>,
-    ) -> Option<Self::Rebind<U>> {
+        objects: &'a Objects<'w, 's, U>,
+    ) -> Option<Object<'w, 's, 'a, U>> {
         self.descendants_deep()
             .find_map(|object| objects.get(object.entity()).ok())
-            .map(|object| self.rebind_as(object.instance()))
     }
 
     /// Returns the path to this object.
@@ -313,31 +314,36 @@ impl<T: Kind> ObjectHierarchy<T> for Object<'_, '_, '_, T> {
     fn parent(&self) -> Option<Self::Rebind<Any>> {
         self.hierarchy
             .parent(self.entity())
-            .map(|entity| self.rebind_any(entity))
+            // SAFE: If this object is valid, then so must be its parent
+            .map(|entity| unsafe { self.rebind_any(entity) })
     }
 
     fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
         self.hierarchy
             .children(self.entity())
-            .map(|entity| self.rebind_any(entity))
+            // SAFE: We assume Bevy removes invalid children
+            .map(|entity| unsafe { self.rebind_any(entity) })
     }
 
     fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
         self.hierarchy
             .ancestors(self.entity())
-            .map(|entity| self.rebind_any(entity))
+            // SAFE: If this object is valid, then so must be its ancestors
+            .map(|entity| unsafe { self.rebind_any(entity) })
     }
 
     fn descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
         self.hierarchy
             .descendants_wide(self.entity())
-            .map(|entity| self.rebind_any(entity))
+            // SAFE: We assume Bevy removes invalid children
+            .map(|entity| unsafe { self.rebind_any(entity) })
     }
 
     fn descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
         self.hierarchy
             .descendants_deep(self.entity())
-            .map(|entity| self.rebind_any(entity))
+            // SAFE: We assume Bevy removes invalid children
+            .map(|entity| unsafe { self.rebind_any(entity) })
     }
 
     fn find_by_path(&self, path: impl AsRef<str>) -> Option<Self::Rebind<Any>> {

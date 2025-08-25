@@ -17,6 +17,9 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// This is useful when you have an [`Object<T>`] and an [`Instance<U>`]
     /// but you want an [`Object<U>`].
     ///
+    /// # Safety
+    /// This method assumes the given instance is valid.
+    ///
     /// # Example
     /// ```
     /// # use bevy::prelude::*;
@@ -35,11 +38,14 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// // ...
     /// app.add_systems(Update, find_worms);
     ///
-    /// fn find_worms(apples: Objects<Apple>, query: Query<&Apple>) {
+    /// fn find_worms(apples: Objects<Apple>, query: Query<&Apple>, worms: Query<&Worm>) {
     ///     for object in apples.iter() {
     ///         let apple = query.get(object.entity()).unwrap();
     ///         for worm in apple.worms.iter() {
-    ///             handle_worm(object.rebind_as(*worm));
+    ///             if worms.contains(*worm) {
+    ///                 // SAFE: We just checked that the worm exists
+    ///                 handle_worm(unsafe { object.rebind_as(*worm) });
+    ///             }
     ///         }
     ///     }
     /// }
@@ -48,7 +54,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///     println!("{:?} found! Gross!", worm);
     /// }
     /// ```
-    fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U>;
+    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U>;
 
     /// Rebinds this object to another [`Instance`] of the same [`Kind`].
     ///
@@ -56,6 +62,10 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///
     /// This is useful when you have an [`Object<T>`] and another [`Instance<T>`]
     /// but you want another [`Object<T>`].
+    ///
+    /// # Safety
+    ///
+    /// This method assumes the given instance is valid.
     ///
     /// # Example
     /// ```
@@ -76,7 +86,11 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///     for object in people.iter() {
     ///         let person = query.get(object.entity()).unwrap();
     ///         for friend in person.friends.iter() {
-    ///             greet_friend(object.rebind(*friend));
+    ///             if !people.contains(*friend) {
+    ///                 continue;
+    ///             }
+    ///             // SAFE: We just checked that the friend exists
+    ///             greet_friend(unsafe { object.rebind(*friend) });
     ///         }
     ///     }
     /// }
@@ -85,7 +99,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///     println!("Hello {:?}!", friend);
     /// }
     /// ```
-    fn rebind(&self, instance: Instance<T>) -> Self::Rebind<T> {
+    unsafe fn rebind(&self, instance: Instance<T>) -> Self::Rebind<T> {
         self.rebind_as(instance)
     }
 
@@ -94,7 +108,11 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// # Usage
     ///
     /// This is useful when you have an [`Object<T>`] but you want an [`Object`] for a different [`Entity`].
-    fn rebind_any(&self, entity: Entity) -> Self::Rebind<Any> {
+    ///
+    /// # Safety
+    ///
+    /// This method assumes the given entity is valid.
+    unsafe fn rebind_any(&self, entity: Entity) -> Self::Rebind<Any> {
         self.rebind_as(Instance::from(entity))
     }
 
@@ -156,7 +174,8 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     where
         T: CastInto<U>,
     {
-        self.rebind_as(self.instance().cast_into())
+        // SAFE: T is safely convertible to U, and it is the same entity
+        unsafe { self.rebind_as(self.instance().cast_into()) }
     }
 
     /// Casts this object into an [`Object<Any>`].
@@ -167,7 +186,8 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///
     /// All objects of any [`Kind`] can be cast into [`Object<Any>`].
     fn cast_into_any(self) -> Self::Rebind<Any> {
-        self.rebind_as(self.instance().cast_into_any())
+        // SAFE: T is safely convertible to Any, and it is the same entity
+        unsafe { self.rebind_as(self.instance().cast_into_any()) }
     }
 
     /// Casts this object into another of a different [`Kind`].
@@ -183,12 +203,18 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     unsafe fn cast_into_unchecked<U: Kind>(self) -> Self::Rebind<U> {
         self.rebind_as(self.instance().cast_into_unchecked())
     }
+
+    /// Returns this object as an [`Object<Any>`].
+    fn as_any(&self) -> Self::Rebind<Any> {
+        // SAFE: I'm valid if I'm valid.
+        unsafe { self.rebind_any(self.entity()) }
+    }
 }
 
 impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for Object<'w, 's, 'a, T> {
     type Rebind<U: Kind> = Object<'w, 's, 'a, U>;
 
-    fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
+    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
         Object {
             instance,
             hierarchy: self.hierarchy,
@@ -200,7 +226,7 @@ impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for Object<'w, 's, 'a, T> {
 impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for ObjectRef<'w, 's, 'a, T> {
     type Rebind<U: Kind> = ObjectRef<'w, 's, 'a, U>;
 
-    fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
+    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
         ObjectRef(self.0, self.1.rebind_as(instance))
     }
 }
