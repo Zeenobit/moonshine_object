@@ -1,6 +1,7 @@
+use bevy_ecs::name::Name;
 use moonshine_kind::prelude::*;
 
-use crate::{Object, ObjectRef};
+use crate::{Object, ObjectRef, ObjectWorldRef};
 
 /// [`Object`] methods related to naming.
 ///
@@ -43,5 +44,13 @@ impl<T: Kind> ObjectName for Object<'_, '_, '_, T> {
 impl<T: Kind> ObjectName for ObjectRef<'_, '_, '_, T> {
     fn name(&self) -> Option<&str> {
         self.1.name()
+    }
+}
+
+impl<T: Kind> ObjectName for ObjectWorldRef<'_, T> {
+    fn name(&self) -> Option<&str> {
+        self.world
+            .get::<Name>(self.entity())
+            .map(|name| name.as_str())
     }
 }

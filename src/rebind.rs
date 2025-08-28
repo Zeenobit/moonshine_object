@@ -1,7 +1,7 @@
 use bevy_ecs::prelude::*;
 use moonshine_kind::{prelude::*, Any, CastInto};
 
-use crate::{Object, ObjectHierarchy, ObjectRef};
+use crate::{Object, ObjectHierarchy, ObjectRef, ObjectWorldRef};
 
 /// [`Object`] methods related to rebinding and casting.
 ///
@@ -228,5 +228,16 @@ impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for ObjectRef<'w, 's, 'a, T> {
 
     unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
         ObjectRef(self.0, self.1.rebind_as(instance))
+    }
+}
+
+impl<'w, T: Kind> ObjectRebind<T> for ObjectWorldRef<'w, T> {
+    type Rebind<U: Kind> = ObjectWorldRef<'w, U>;
+
+    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
+        ObjectWorldRef {
+            instance: instance,
+            world: self.world,
+        }
     }
 }

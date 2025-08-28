@@ -1,8 +1,9 @@
 use bevy_ecs::prelude::*;
 use bevy_ecs::query::{QueryData, QueryFilter, QueryItem};
 use moonshine_kind::{prelude::*, Any};
+use moonshine_util::hierarchy::{WorldDescendantsDeepIter, WorldDescendantsWideIter};
 
-use crate::{Object, ObjectName, ObjectRebind, ObjectRef, Objects};
+use crate::{Object, ObjectName, ObjectRebind, ObjectRef, ObjectWorldRef, Objects};
 
 /// [`Object`] methods related to hierarchy traversal.
 ///
@@ -381,6 +382,44 @@ impl<T: Kind> ObjectHierarchy<T> for ObjectRef<'_, '_, '_, T> {
         self.1
             .find_by_path(path)
             .map(|object| ObjectRef(self.0, object))
+    }
+}
+
+impl<T: Kind> ObjectHierarchy<T> for ObjectWorldRef<'_, T> {
+    fn parent(&self) -> Option<Self::Rebind<Any>> {
+        let &ChildOf(parent) = self.world.get(self.entity())?;
+        // SAFE: If this object is valid, then so must be its parent
+        Some(unsafe { self.rebind_any(parent) })
+    }
+
+    fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        self.world
+            .get::<Children>(self.entity())
+            .into_iter()
+            .flat_map(|children| children.iter())
+            // SAFE: Assume Bevy removes invalid children
+            .map(|entity| unsafe { self.rebind_any(entity) })
+    }
+
+    fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        std::iter::successors(self.parent(), |current| current.parent())
+    }
+
+    fn descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        WorldDescendantsWideIter::new(self.world, self.entity())
+            // SAFE: Assume Bevy resomves invalid descendants
+            .map(|entity| unsafe { self.rebind_any(entity) })
+    }
+
+    fn descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
+        WorldDescendantsDeepIter::new(self.world, self.entity())
+            // SAFE: Assume Bevy resomves invalid descendants
+            .map(|entity| unsafe { self.rebind_any(entity) })
+    }
+
+    fn find_by_path(&self, path: impl AsRef<str>) -> Option<Self::Rebind<Any>> {
+        let tail: Vec<&str> = path.as_ref().split('/').collect();
+        find_by_path(self.cast_into_any(), &tail)
     }
 }
 

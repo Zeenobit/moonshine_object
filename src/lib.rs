@@ -4,8 +4,8 @@
 pub mod prelude {
     //! Prelude module to import all necessary traits and types for working with objects.
 
-    pub use super::{Object, ObjectRef, Objects, RootObjects};
-    pub use super::{ObjectHierarchy, ObjectName, ObjectRebind, ObjectTags};
+    pub use super::{GetObject, ObjectHierarchy, ObjectName, ObjectRebind, ObjectTags};
+    pub use super::{Object, ObjectRef, ObjectWorldRef, Objects, RootObjects};
 }
 
 mod hierarchy;
@@ -16,6 +16,7 @@ mod tags;
 use std::fmt;
 use std::ops::Deref;
 
+use bevy_ecs::entity::EntityDoesNotExistError;
 use bevy_ecs::prelude::*;
 use bevy_ecs::query::{QueryEntityError, QueryFilter, QuerySingleError};
 use bevy_ecs::system::SystemParam;
@@ -135,11 +136,11 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     ///
     /// # Safety
     /// Assumes `base` is of [`Kind`] `T`.
-    pub unsafe fn from_base_unchecked(base: Object<'w, 's, 'a>) -> Self {
+    pub unsafe fn from_any_unchecked(object: Object<'w, 's, 'a>) -> Self {
         Self {
-            instance: base.instance.cast_into_unchecked(),
-            hierarchy: base.hierarchy,
-            nametags: base.nametags,
+            instance: object.instance.cast_into_unchecked(),
+            hierarchy: object.hierarchy,
+            nametags: object.nametags,
         }
     }
 
@@ -156,7 +157,7 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
 
 impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
     /// Creates a new [`Object<T>`] from an [`Object<Any>`] if it is a valid instance of `T`.
-    pub fn from_base(world: &World, object: Object<'w, 's, 'a>) -> Option<Object<'w, 's, 'a, T>> {
+    pub fn from_any(world: &World, object: Object<'w, 's, 'a>) -> Option<Object<'w, 's, 'a, T>> {
         let entity = world.entity(object.entity());
         let instance = Instance::<T>::from_entity(entity)?;
         // SAFE: Entity was just checked to a valid instance of T.
@@ -252,8 +253,8 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     ///
     /// # Safety
     /// Assumes `base` is of [`Kind`] `T`.
-    pub unsafe fn from_base_unchecked(base: ObjectRef<'w, 's, 'a>) -> Self {
-        Self(base.0, Object::from_base_unchecked(base.1))
+    pub unsafe fn from_any_unchecked(base: ObjectRef<'w, 's, 'a>) -> Self {
+        Self(base.0, Object::from_any_unchecked(base.1))
     }
 
     /// See [`EntityRef::get`].
@@ -264,6 +265,11 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     /// See [`EntityRef::contains`].
     pub fn contains<U: Component>(&self) -> bool {
         self.0.contains::<U>()
+    }
+
+    /// Returns the object as an [`EntityRef`].
+    pub fn as_entity(&self) -> EntityRef<'a> {
+        self.0
     }
 }
 
@@ -338,6 +344,182 @@ impl<T: Kind> fmt::Display for ObjectRef<'_, '_, '_, T> {
         } else {
             write!(f, "{}({})", &T::debug_name(), self.entity())
         }
+    }
+}
+
+/// Similar to an [`ObjectRef`], but accessible via [`World`].
+pub struct ObjectWorldRef<'w, T: Kind = Any> {
+    instance: Instance<T>,
+    world: &'w World,
+}
+
+impl<'w, T: Kind> ObjectWorldRef<'w, T> {
+    /// Creates a new [`ObjectWorldRef<T>`] from an [`ObjectWorldRef<Any>`].
+    ///
+    /// This is semantically equivalent to an unsafe downcast.
+    ///
+    /// # Safety
+    /// Assumes `object` is of [`Kind`] `T`.
+    pub unsafe fn from_any_unchecked(object: ObjectWorldRef<'w>) -> Self {
+        Self {
+            instance: object.instance.cast_into_unchecked(),
+            world: object.world,
+        }
+    }
+
+    /// Creates a new [`ObjectWorldRef<T>`] from an [`ObjectWorldRef<Any>`] if the object
+    /// contains the given [`Component`] `T`.
+    ///
+    /// This is semantically equivalent to a safe downcast.
+    pub fn from_any(object: ObjectWorldRef<'w>) -> Option<Self>
+    where
+        T: Component,
+    {
+        Some(Self {
+            instance: Instance::from_entity(object.as_entity())?,
+            world: object.world,
+        })
+    }
+
+    /// See [`EntityRef::get`].
+    pub fn get<U: Component>(&self) -> Option<&U> {
+        self.world.get::<U>(self.entity())
+    }
+
+    /// See [`EntityRef::contains`].
+    pub fn contains<U: Component>(&self) -> bool {
+        self.world.entity(self.entity()).contains::<U>()
+    }
+
+    /// Returns the object as an [`Instance<T>`].
+    pub fn instance(&self) -> Instance<T> {
+        self.instance
+    }
+
+    /// Returns the object as an [`Entity`].
+    pub fn entity(&self) -> Entity {
+        self.instance.entity()
+    }
+
+    /// Returns the object as an [`EntityRef`].
+    pub fn as_entity(&self) -> EntityRef<'w> {
+        self.world.entity(self.entity())
+    }
+}
+
+impl<T: Kind> ContainsInstance<T> for ObjectWorldRef<'_, T> {
+    fn instance(&self) -> Instance<T> {
+        self.instance
+    }
+}
+
+impl<T: Kind> Clone for ObjectWorldRef<'_, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Kind> Copy for ObjectWorldRef<'_, T> {}
+
+impl<T: Kind> From<ObjectWorldRef<'_, T>> for Entity {
+    fn from(object: ObjectWorldRef<'_, T>) -> Self {
+        object.entity()
+    }
+}
+
+impl<T: Kind> From<ObjectWorldRef<'_, T>> for Instance<T> {
+    fn from(object: ObjectWorldRef<'_, T>) -> Self {
+        object.instance()
+    }
+}
+
+impl<T: Kind, U: Kind> PartialEq<ObjectWorldRef<'_, U>> for ObjectWorldRef<'_, T> {
+    fn eq(&self, other: &ObjectWorldRef<U>) -> bool {
+        self.instance == other.instance
+    }
+}
+
+impl<T: Kind> Eq for ObjectWorldRef<'_, T> {}
+
+impl<T: Kind> PartialEq<Instance<T>> for ObjectWorldRef<'_, T> {
+    fn eq(&self, other: &Instance<T>) -> bool {
+        self.instance() == *other
+    }
+}
+
+impl<T: Kind> PartialEq<ObjectWorldRef<'_, T>> for Instance<T> {
+    fn eq(&self, other: &ObjectWorldRef<T>) -> bool {
+        *self == other.instance()
+    }
+}
+
+impl<T: Kind> PartialEq<Entity> for ObjectWorldRef<'_, T> {
+    fn eq(&self, other: &Entity) -> bool {
+        self.entity() == *other
+    }
+}
+
+impl<T: Kind> PartialEq<ObjectWorldRef<'_, T>> for Entity {
+    fn eq(&self, other: &ObjectWorldRef<T>) -> bool {
+        *self == other.entity()
+    }
+}
+
+impl<T: Kind> fmt::Debug for ObjectWorldRef<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(name) = self.name() {
+            write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
+        } else {
+            write!(f, "{}({:?})", &T::debug_name(), self.entity())
+        }
+    }
+}
+
+impl<T: Kind> fmt::Display for ObjectWorldRef<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(name) = self.name() {
+            write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
+        } else {
+            write!(f, "{}({})", &T::debug_name(), self.entity())
+        }
+    }
+}
+
+impl<T: Component> Deref for ObjectWorldRef<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.world.get::<T>(self.entity()).unwrap()
+    }
+}
+
+/// Trait used to access an [`ObjectWorldRef`] from [`World`].
+pub trait GetObject {
+    /// Returns an [`ObjectWorldRef`] bounds to the given [`Entity`].
+    ///
+    /// # Safety
+    ///
+    /// This method will [`panic!`] if given entity is invalid.
+    /// See [`get_object`](GetObject::get_object) for a safer alternative.
+    fn object(&'_ self, entity: Entity) -> ObjectWorldRef<'_>;
+
+    /// Returns an [`ObjectWorldRef`] bounds to the given [`Entity`], if it exists.
+    fn get_object(&'_ self, entity: Entity) -> Result<ObjectWorldRef<'_>, EntityDoesNotExistError>;
+}
+
+impl GetObject for World {
+    fn object(&'_ self, entity: Entity) -> ObjectWorldRef<'_> {
+        ObjectWorldRef {
+            instance: self.entity(entity).id().into(),
+            world: self,
+        }
+    }
+
+    fn get_object(&'_ self, entity: Entity) -> Result<ObjectWorldRef<'_>, EntityDoesNotExistError> {
+        Ok(ObjectWorldRef {
+            instance: self.get_entity(entity)?.id().into(),
+            world: self,
+        })
     }
 }
 
@@ -472,6 +654,19 @@ mod tests {
                     .contains::<T>()
             })
             .unwrap());
+    }
+
+    #[test]
+    fn world_object_ref() {
+        #[derive(Component)]
+        struct T;
+
+        let mut w = World::new();
+        let entity = w.spawn(T).id();
+
+        let object = ObjectWorldRef::<T>::from_any(w.object(entity)).unwrap();
+
+        assert_eq!(object, entity);
     }
 
     #[test]
