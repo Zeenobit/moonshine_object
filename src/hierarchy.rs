@@ -25,8 +25,8 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         self.parent().is_none()
     }
 
-    /// Returns true if this object is related to the given [`Entity`] (i.e. they share the same root).
-    fn is_related_to<U: Kind>(&self, other: &Object<U>) -> bool {
+    /// Returns true if this object has the same root as another.
+    fn is_related_to<U: Kind>(&self, other: &impl ObjectHierarchy<U>) -> bool {
         self.root().entity() == other.root().entity()
     }
 
@@ -35,13 +35,13 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         self.parent().is_some()
     }
 
-    /// Returns true if this object is a child of the given parent entity.
-    fn is_child_of(&self, parent: Entity) -> bool {
+    /// Returns true if this object is a child of the given [`Entity`].
+    fn is_child_of(&self, entity: Entity) -> bool {
         self.parent()
-            .is_some_and(|object| object.entity() == parent)
+            .is_some_and(|object| object.entity() == entity)
     }
 
-    /// Returns an iterator over all the children of this object.
+    /// Iterates over all children of this object.
     fn children(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
     /// Returns true if this object has any children.
@@ -49,7 +49,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         self.children().next().is_some()
     }
 
-    /// Queries the children of this object.
+    /// Iterates over all children of this object which match the given [`Query`].
     fn query_children<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'a Query<Q, F>,
@@ -58,7 +58,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .filter_map(move |object| query.get(object.entity()).ok())
     }
 
-    /// Returns an iterator over all children of this object which are of the given kind.
+    /// Iterates over all children of this object which match the given [`Kind`].
     fn children_of_kind<'w, 's, 'a, U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -67,7 +67,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .filter_map(move |object| objects.get(object.entity()).ok())
     }
 
-    /// Returns the first child of this object which is of the given kind, if it exists.
+    /// Returns the first child of this object which matches the given kind, if it exists.
     fn find_child_of_kind<'w, 's, 'a, U: Kind>(
         &self,
         objects: &'a Objects<'w, 's, U>,
@@ -76,16 +76,16 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .find_map(|object| objects.get(object.entity()).ok())
     }
 
-    /// Returns an iterator over all ancestors of this object.
+    /// Iterates over all ancestors of this object.
     fn ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
-    /// Returns an iterator over this object and all its ancestors.
+    /// Iterates over this object, followed by all of its ancestors.
     fn self_and_ancestors(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        std::iter::once(self.as_any()).chain(self.ancestors())
+        std::iter::Iterator::chain(std::iter::once(self.as_any()), self.ancestors())
     }
 
-    /// Returns true if this object is an ancestor of the given entity.
-    fn is_ancestor_of<U: Kind>(&self, other: &Object<U>) -> bool
+    /// Returns true if this object is an ancestor of another.
+    fn is_ancestor_of<U: Kind>(&self, other: &impl ObjectHierarchy<U>) -> bool
     where
         Self::Rebind<Any>: ObjectHierarchy<Any>,
     {
@@ -94,7 +94,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .any(|ancestor| ancestor.entity() == self.entity())
     }
 
-    /// Queries the ancestors of this object.
+    /// Iterates over all ancestors of this object which match the given [`Query`].
     fn query_ancestors<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'a Query<Q, F>,
@@ -105,7 +105,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         })
     }
 
-    /// Queries this object and its ancestors.
+    /// Iterates over this object, followed by all its ancestors which match the given [`Query`].
     fn query_self_and_ancestors<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'a Query<Q, F>,
@@ -116,7 +116,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         })
     }
 
-    /// Returns an iterator over all ancestors of this object which are of the given kind.
+    /// Iterates over all ancestors of this object which match the given [`Kind`].
     fn ancestors_of_kind<'w, 's, 'a, U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -125,7 +125,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .filter_map(move |object| objects.get(object.entity()).ok())
     }
 
-    /// Returns an iterator over this object and all its ancestors which are of the given kind.
+    /// Iterates over this object, followed by all its ancestors which match the given [`Kind`].
     fn self_and_ancestors_of_kind<'w, 's, 'a, U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -134,7 +134,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .filter_map(move |object| objects.get(object.entity()).ok())
     }
 
-    /// Returns the first ancestor of this object which is of the given kind, if it exists.
+    /// Returns the first ancestor of this object which matches the given [`Kind`], if it exists.
     fn find_ancestor_of_kind<'w, 's, 'a, U: Kind>(
         &self,
         objects: &'a Objects<'w, 's, U>,
@@ -143,20 +143,20 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .find_map(|object| objects.get(object.entity()).ok())
     }
 
-    /// Returns an iterator over all descendants of this object in breadth-first order.
+    /// Iterates over all descendants of this object in breadth-first order.
     fn descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
-    /// Returns an iterator over all descendants of this object in depth-first order.
+    /// Iterates over all descendants of this object in depth-first order.
     fn descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>>;
 
-    /// Returns an iterator over this object and all its descendants in breadth-first order.
+    /// Iterates over this object and all its descendants in breadth-first order.
     fn self_and_descendants_wide(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        std::iter::once(self.as_any()).chain(self.descendants_wide())
+        std::iter::Iterator::chain(std::iter::once(self.as_any()), self.descendants_wide())
     }
 
-    /// Returns an iterator over this object and all its descendants in depth-first order.
+    /// Iterates over this object and all its descendants in depth-first order.
     fn self_and_descendants_deep(&self) -> impl Iterator<Item = Self::Rebind<Any>> {
-        std::iter::once(self.as_any()).chain(self.descendants_deep())
+        std::iter::Iterator::chain(std::iter::once(self.as_any()), self.descendants_deep())
     }
 
     /// Returns true if this object is a descendant of the given entity.
@@ -167,7 +167,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         self.ancestors().any(|ancestor| ancestor.entity() == entity)
     }
 
-    /// Queries the descendants of this object in breadth-first order.
+    /// Iterates over all descendants of this object which match the given [`Kind`] in breadth-first order.
     fn descendants_of_kind_wide<'w, 's, 'a, U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -176,7 +176,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .filter_map(move |object| objects.get(object.entity()).ok())
     }
 
-    /// Queries the descendants of this object in depth-first order.
+    /// Iterates over all descendants of this object which match the given [`Kind`] in depth-first order.
     fn descendants_of_kind_deep<'w, 's, 'a, U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -185,7 +185,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .filter_map(move |object| objects.get(object.entity()).ok())
     }
 
-    /// Queries this object and all its descendants in breadth-first order.
+    /// Iterates over this object, followed by all its descendants which match the given [`Kind`] in breadth-first order.
     fn self_and_descendants_of_kind_wide<'w, 's, 'a, U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -194,7 +194,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .filter_map(move |object| objects.get(object.entity()).ok())
     }
 
-    /// Queries this object and all its descendants in depth-first order.
+    /// Iterates over this object, followed by all its descendants which match the given [`Kind`] in depth-first order.
     fn self_and_descendants_of_kind_deep<'w, 's, 'a, U: Kind>(
         &'a self,
         objects: &'a Objects<'w, 's, U>,
@@ -203,7 +203,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .filter_map(move |object| objects.get(object.entity()).ok())
     }
 
-    /// Queries the descendants of this object in breadth-first order.
+    /// Iterates over all descendants of this object which match the given [`Query`] in breadth-first order.
     fn query_descendants_wide<'a, 'q, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'q Query<Q, F>,
@@ -217,7 +217,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         })
     }
 
-    /// Queries the descendants of this object in depth-first order.
+    /// Iterates over all descendants of this object which match the given [`Kind`] in depth-first order.
     fn query_descendants_deep<'a, 'q, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'q Query<Q, F>,
@@ -231,7 +231,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         })
     }
 
-    /// Queries this object and all its descendants in breadth-first order.
+    /// Iterates over this object, followed by all its descendants which match the given [`Query`] in breadth-first order.
     fn query_self_and_descendants_wide<'a, 'q, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'q Query<Q, F>,
@@ -245,7 +245,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         })
     }
 
-    /// Queries this object and all its descendants in depth-first order.
+    /// Iterates over this object, followed by all its descendants which match the given [`Query`] in depth-first order.
     fn query_self_and_descendants_deep<'a, 'q, Q: QueryData>(
         &'a self,
         query: &'q Query<Q>,
@@ -259,7 +259,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
         })
     }
 
-    /// Returns the first descendant of this object (breadth-first order) which is of the given kind, if it exists.
+    /// Returns the first descendant of this object (breadth-first order) which matches the given [`Kind`], if it exists.
     fn find_descendant_of_kind_wide<'w, 's, 'a, U: Kind>(
         &self,
         objects: &'a Objects<'w, 's, U>,
@@ -268,7 +268,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
             .find_map(|object| objects.get(object.entity()).ok())
     }
 
-    /// Returns the first descendant of this object (depth-first order) which is of the given kind, if it exists.
+    /// Returns the first descendant of this object (depth-first order) which matches the given [`Kind`], if it exists.
     fn find_descendant_of_kind_deep<'w, 's, 'a, U: Kind>(
         &self,
         objects: &'a Objects<'w, 's, U>,
