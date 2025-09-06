@@ -3,7 +3,11 @@ use moonshine_tag::Tags;
 
 use crate::{Object, ObjectRef, ObjectWorldRef};
 
+/// [`Object`] methods related to accessing [`Tags`].
 pub trait ObjectTags {
+    /// Returns the [`Tags`] of this [`Object`].
+    ///
+    /// For convenience, if the object has no tags, [`Tags::static_empty`] is returned instead.
     fn tags(&self) -> &Tags;
 }
 
