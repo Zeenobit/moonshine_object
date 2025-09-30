@@ -36,8 +36,7 @@ impl<T: Kind> ObjectName for Object<'_, '_, '_, T> {
         self.nametags
             .get(self.entity())
             .ok()
-            .map(|(name, _tags)| name.map(|name| name.as_str()))
-            .flatten()
+            .and_then(|(name, _tags)| name.map(|name| name.as_str()))
     }
 }
 

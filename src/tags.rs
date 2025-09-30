@@ -16,8 +16,7 @@ impl<T: Kind> ObjectTags for Object<'_, '_, '_, T> {
         self.nametags
             .get(self.entity())
             .ok()
-            .map(|(_name, tags)| tags)
-            .flatten()
+            .and_then(|(_name, tags)| tags)
             .unwrap_or(Tags::static_empty())
     }
 }

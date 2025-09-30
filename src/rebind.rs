@@ -42,7 +42,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///     for object in apples.iter() {
     ///         let apple = query.get(object.entity()).unwrap();
     ///         for worm in apple.worms.iter() {
-    ///             if worms.contains(*worm) {
+    ///             if worms.contains(worm.entity()) {
     ///                 // SAFE: We just checked that the worm exists
     ///                 handle_worm(unsafe { object.rebind_as(*worm) });
     ///             }
@@ -86,7 +86,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///     for object in people.iter() {
     ///         let person = query.get(object.entity()).unwrap();
     ///         for friend in person.friends.iter() {
-    ///             if !people.contains(*friend) {
+    ///             if !people.contains(friend.entity()) {
     ///                 continue;
     ///             }
     ///             // SAFE: We just checked that the friend exists
@@ -236,7 +236,7 @@ impl<'w, T: Kind> ObjectRebind<T> for ObjectWorldRef<'w, T> {
 
     unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
         ObjectWorldRef {
-            instance: instance,
+            instance,
             world: self.world,
         }
     }

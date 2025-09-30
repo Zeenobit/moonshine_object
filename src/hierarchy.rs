@@ -448,7 +448,7 @@ fn find_by_path<T: ObjectHierarchy<Rebind<Any> = T>>(
                 return Some(result);
             }
         }
-        return None;
+        None
     } else if let Some(child) = curr
         .children()
         .find(|part| part.name().is_some_and(|name| name == head))
