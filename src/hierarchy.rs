@@ -53,7 +53,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     fn query_children<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'a Query<Q, F>,
-    ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
+    ) -> impl Iterator<Item = QueryItem<'a, 'a, Q::ReadOnly>> + 'a {
         self.children()
             .filter_map(move |object| query.get(object.entity()).ok())
     }
@@ -98,7 +98,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     fn query_ancestors<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'a Query<Q, F>,
-    ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
+    ) -> impl Iterator<Item = QueryItem<'a, 'a, Q::ReadOnly>> + 'a {
         self.ancestors().filter_map(move |object| {
             let entity = object.entity();
             query.get(entity).ok()
@@ -109,7 +109,7 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     fn query_self_and_ancestors<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
         query: &'a Query<Q, F>,
-    ) -> impl Iterator<Item = QueryItem<'a, Q::ReadOnly>> + 'a {
+    ) -> impl Iterator<Item = QueryItem<'a, 'a, Q::ReadOnly>> + 'a {
         self.self_and_ancestors().filter_map(move |object| {
             let entity = object.entity();
             query.get(entity).ok()
@@ -204,13 +204,10 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     }
 
     /// Iterates over all descendants of this object which match the given [`Query`] in breadth-first order.
-    fn query_descendants_wide<'a, 'q, Q: QueryData, F: QueryFilter>(
+    fn query_descendants_wide<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'q Query<Q, F>,
-    ) -> impl Iterator<Item = QueryItem<'q, Q::ReadOnly>> + 'a
-    where
-        'q: 'a,
-    {
+        query: &'a Query<Q, F>,
+    ) -> impl Iterator<Item = QueryItem<'a, 'a, Q::ReadOnly>> + 'a {
         self.descendants_wide().filter_map(move |object| {
             let entity = object.entity();
             query.get(entity).ok()
@@ -218,13 +215,10 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     }
 
     /// Iterates over all descendants of this object which match the given [`Kind`] in depth-first order.
-    fn query_descendants_deep<'a, 'q, Q: QueryData, F: QueryFilter>(
+    fn query_descendants_deep<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'q Query<Q, F>,
-    ) -> impl Iterator<Item = QueryItem<'q, Q::ReadOnly>> + 'a
-    where
-        'q: 'a,
-    {
+        query: &'a Query<Q, F>,
+    ) -> impl Iterator<Item = QueryItem<'a, 'a, Q::ReadOnly>> + 'a {
         self.descendants_deep().filter_map(move |object| {
             let entity = object.entity();
             query.get(entity).ok()
@@ -232,13 +226,10 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     }
 
     /// Iterates over this object, followed by all its descendants which match the given [`Query`] in breadth-first order.
-    fn query_self_and_descendants_wide<'a, 'q, Q: QueryData, F: QueryFilter>(
+    fn query_self_and_descendants_wide<'a, Q: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'q Query<Q, F>,
-    ) -> impl Iterator<Item = QueryItem<'q, Q::ReadOnly>> + 'a
-    where
-        'q: 'a,
-    {
+        query: &'a Query<Q, F>,
+    ) -> impl Iterator<Item = QueryItem<'a, 'a, Q::ReadOnly>> + 'a {
         self.self_and_descendants_wide().filter_map(move |object| {
             let entity = object.entity();
             query.get(entity).ok()
@@ -246,13 +237,10 @@ pub trait ObjectHierarchy<T: Kind = Any>: ObjectRebind<T> + ObjectName {
     }
 
     /// Iterates over this object, followed by all its descendants which match the given [`Query`] in depth-first order.
-    fn query_self_and_descendants_deep<'a, 'q, Q: QueryData>(
+    fn query_self_and_descendants_deep<'a, Q: QueryData>(
         &'a self,
-        query: &'q Query<Q>,
-    ) -> impl Iterator<Item = QueryItem<'q, Q::ReadOnly>> + 'a
-    where
-        'q: 'a,
-    {
+        query: &'a Query<Q>,
+    ) -> impl Iterator<Item = QueryItem<'a, 'a, Q::ReadOnly>> + 'a {
         self.self_and_descendants_deep().filter_map(move |object| {
             let entity = object.entity();
             query.get(entity).ok()
