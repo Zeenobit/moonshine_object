@@ -199,7 +199,6 @@ fn handle_hunger(bird: Object<Bird>) {
     chirp(bird);
     find_food(bird.cast_into()); // Safe! :)
 }
-
 ```
 
 Any [`Object<T>`] is safely convertible to [`Object<Any>`][`Object`].
