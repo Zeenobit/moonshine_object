@@ -11,10 +11,10 @@ homepage = "https://github.com/Zeenobit/moonshine_object"
 repository = "https://github.com/Zeenobit/moonshine_object"
 
 [dependencies]
-bevy_ecs = "0.17"
+bevy_ecs = "0.18"
 moonshine-kind = { version = "0.4" }
 moonshine-util = { version = "0.4" }
 moonshine-tag = { version = "0.4" }
 
 [dev-dependencies]
-bevy = "0.17"
+bevy = "0.18"

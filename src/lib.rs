@@ -16,7 +16,7 @@ mod tags;
 use std::fmt;
 use std::ops::Deref;
 
-use bevy_ecs::entity::EntityDoesNotExistError;
+use bevy_ecs::entity::EntityNotSpawnedError;
 use bevy_ecs::prelude::*;
 use bevy_ecs::query::{QueryEntityError, QueryFilter, QuerySingleError};
 use bevy_ecs::system::SystemParam;
@@ -504,7 +504,7 @@ pub trait GetObject {
     fn object(&'_ self, entity: Entity) -> ObjectWorldRef<'_>;
 
     /// Returns an [`ObjectWorldRef`] bounds to the given [`Entity`], if it exists.
-    fn get_object(&'_ self, entity: Entity) -> Result<ObjectWorldRef<'_>, EntityDoesNotExistError>;
+    fn get_object(&'_ self, entity: Entity) -> Result<ObjectWorldRef<'_>, EntityNotSpawnedError>;
 }
 
 impl GetObject for World {
@@ -515,7 +515,7 @@ impl GetObject for World {
         }
     }
 
-    fn get_object(&'_ self, entity: Entity) -> Result<ObjectWorldRef<'_>, EntityDoesNotExistError> {
+    fn get_object(&'_ self, entity: Entity) -> Result<ObjectWorldRef<'_>, EntityNotSpawnedError> {
         Ok(ObjectWorldRef {
             instance: self.get_entity(entity)?.id().into(),
             world: self,
