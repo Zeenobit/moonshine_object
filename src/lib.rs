@@ -14,11 +14,13 @@ mod rebind;
 mod tags;
 
 use std::fmt;
+use std::marker::PhantomData;
 use std::ops::Deref;
 
 use bevy_ecs::entity::EntityNotSpawnedError;
 use bevy_ecs::prelude::*;
 use bevy_ecs::query::{QueryEntityError, QueryFilter, QuerySingleError};
+use bevy_ecs::relationship::Relationship;
 use bevy_ecs::system::SystemParam;
 use moonshine_kind::prelude::*;
 use moonshine_util::hierarchy::HierarchyQuery;
@@ -33,7 +35,7 @@ pub use tags::*;
 
 /// A [`SystemParam`] similar to [`Query`] which provides [`Object<T>`] access for its items.
 #[derive(SystemParam)]
-pub struct Objects<'w, 's, T = Any, F = ()>
+pub struct Objects<'w, 's, T = Any, F = (), R: Relationship = ChildOf>
 where
     T: Kind,
     F: 'static + QueryFilter,
@@ -41,18 +43,19 @@ where
     /// [`Query`] used to filter instances of the given [`Kind`] `T`.
     pub instance: Query<'w, 's, Instance<T>, F>,
     /// [`HierarchyQuery`] used to traverse the object hierarchy.
-    pub hierarchy: HierarchyQuery<'w, 's>,
+    pub hierarchy: HierarchyQuery<'w, 's, R>,
     /// [`Query`] to identify objects by name or tags, mainly used for for hierarchy traversal and searching.
     pub nametags: Query<'w, 's, AnyOf<(&'static Name, &'static Tags)>>,
 }
 
-impl<'w, 's, T, F> Objects<'w, 's, T, F>
+impl<'w, 's, T, F, R> Objects<'w, 's, T, F, R>
 where
     T: Kind,
     F: 'static + QueryFilter,
+    R: Relationship,
 {
     /// Iterates over all [`Object`]s of [`Kind`] `T` which match the [`QueryFilter`] `F`.
-    pub fn iter(&self) -> impl Iterator<Item = Object<'w, 's, '_, T>> {
+    pub fn iter(&self) -> impl Iterator<Item = Object<'w, 's, '_, T, R>> {
         self.instance.iter().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
@@ -69,13 +72,13 @@ where
     pub fn iter_ref<'a>(
         &'a self,
         world: &'a World,
-    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, T>> {
+    ) -> impl Iterator<Item = ObjectRef<'w, 's, 'a, T, R>> {
         self.iter()
-            .map(|object: Object<T>| ObjectRef(world.entity(object.entity()), object))
+            .map(|object: Object<T, R>| ObjectRef(world.entity(object.entity()), object))
     }
 
     /// Returns an [`Object<T>`] from an [`Entity`], if it matches [`QueryFilter`] `F`.
-    pub fn get(&self, entity: Entity) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
+    pub fn get(&self, entity: Entity) -> Result<Object<'w, 's, '_, T, R>, QueryEntityError> {
         self.instance.get(entity).map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
@@ -84,12 +87,12 @@ where
     }
 
     /// Returns an [`ObjectRef<T>`] from an [`EntityRef`], if it matches [`QueryFilter`] `F`.
-    pub fn get_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T>> {
+    pub fn get_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T, R>> {
         Some(ObjectRef(entity, self.get(entity.id()).ok()?))
     }
 
     /// Returns an [`Object<T>`], if it exists as a single instance.
-    pub fn get_single(&self) -> Result<Object<'w, 's, '_, T>, QuerySingleError> {
+    pub fn get_single(&self) -> Result<Object<'w, 's, '_, T, R>, QuerySingleError> {
         self.instance.single().map(|instance| Object {
             instance,
             hierarchy: &self.hierarchy,
@@ -98,7 +101,10 @@ where
     }
 
     /// Returns an [`ObjectRef<T>`] from an [`EntityRef`], if it exists as a single instance.
-    pub fn get_single_ref<'a>(&'a self, entity: EntityRef<'a>) -> Option<ObjectRef<'w, 's, 'a, T>> {
+    pub fn get_single_ref<'a>(
+        &'a self,
+        entity: EntityRef<'a>,
+    ) -> Option<ObjectRef<'w, 's, 'a, T, R>> {
         Some(ObjectRef(entity, self.get_single().ok()?))
     }
 
@@ -106,7 +112,7 @@ where
     ///
     /// # Safety
     /// Assumes `instance` is a valid [`Instance`] of [`Kind`] `T`.
-    pub fn instance(&self, instance: Instance<T>) -> Object<'w, 's, '_, T> {
+    pub fn instance(&self, instance: Instance<T>) -> Object<'w, 's, '_, T, R> {
         self.get(instance.entity()).expect("instance must be valid")
     }
 
@@ -114,7 +120,7 @@ where
     pub fn get_instance(
         &self,
         instance: Instance<T>,
-    ) -> Result<Object<'w, 's, '_, T>, QueryEntityError> {
+    ) -> Result<Object<'w, 's, '_, T, R>, QueryEntityError> {
         self.get(instance.entity())
     }
 }
@@ -123,20 +129,20 @@ where
 pub type RootObjects<'w, 's, T = Any, F = ()> = Objects<'w, 's, T, (F, Without<ChildOf>)>;
 
 /// Represents an [`Entity`] of [`Kind`] `T` with hierarchy and name information.
-pub struct Object<'w, 's, 'a, T: Kind = Any> {
+pub struct Object<'w, 's, 'a, T: Kind = Any, R: Relationship = ChildOf> {
     instance: Instance<T>,
-    hierarchy: &'a HierarchyQuery<'w, 's>,
+    hierarchy: &'a HierarchyQuery<'w, 's, R>,
     nametags: &'a Query<'w, 's, AnyOf<(&'static Name, &'static Tags)>>,
 }
 
-impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
+impl<'w, 's, 'a, T: Kind, R: Relationship> Object<'w, 's, 'a, T, R> {
     /// Creates a new [`Object<T>`] from an [`Object<Any>`].
     ///
     /// This is semantically equivalent to an unsafe downcast.
     ///
     /// # Safety
     /// Assumes `base` is of [`Kind`] `T`.
-    pub unsafe fn from_any_unchecked(object: Object<'w, 's, 'a>) -> Self {
+    pub unsafe fn from_any_unchecked(object: Object<'w, 's, 'a, Any, R>) -> Self {
         Self {
             instance: object.instance.cast_into_unchecked(),
             hierarchy: object.hierarchy,
@@ -155,9 +161,12 @@ impl<'w, 's, 'a, T: Kind> Object<'w, 's, 'a, T> {
     }
 }
 
-impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
+impl<'w, 's, 'a, T: Component, R: Relationship> Object<'w, 's, 'a, T, R> {
     /// Creates a new [`Object<T>`] from an [`Object<Any>`] if it is a valid instance of `T`.
-    pub fn from_any(world: &World, object: Object<'w, 's, 'a>) -> Option<Object<'w, 's, 'a, T>> {
+    pub fn from_any(
+        world: &World,
+        object: Object<'w, 's, 'a, Any, R>,
+    ) -> Option<Object<'w, 's, 'a, T, R>> {
         let entity = world.entity(object.entity());
         let instance = Instance::<T>::from_entity(entity)?;
         // SAFE: Entity was just checked to a valid instance of T.
@@ -165,59 +174,61 @@ impl<'w, 's, 'a, T: Component> Object<'w, 's, 'a, T> {
     }
 }
 
-impl<T: Kind> Clone for Object<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> Clone for Object<'_, '_, '_, T, R> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: Kind> Copy for Object<'_, '_, '_, T> {}
+impl<T: Kind, R: Relationship> Copy for Object<'_, '_, '_, T, R> {}
 
-impl<T: Kind> From<Object<'_, '_, '_, T>> for Entity {
-    fn from(object: Object<'_, '_, '_, T>) -> Self {
+impl<T: Kind, R: Relationship> From<Object<'_, '_, '_, T, R>> for Entity {
+    fn from(object: Object<'_, '_, '_, T, R>) -> Self {
         object.entity()
     }
 }
 
-impl<T: Kind> From<Object<'_, '_, '_, T>> for Instance<T> {
-    fn from(object: Object<'_, '_, '_, T>) -> Self {
+impl<T: Kind, R: Relationship> From<Object<'_, '_, '_, T, R>> for Instance<T> {
+    fn from(object: Object<'_, '_, '_, T, R>) -> Self {
         object.instance()
     }
 }
 
-impl<T: Kind, U: Kind> PartialEq<Object<'_, '_, '_, U>> for Object<'_, '_, '_, T> {
-    fn eq(&self, other: &Object<U>) -> bool {
+impl<T: Kind, U: Kind, R: Relationship> PartialEq<Object<'_, '_, '_, U, R>>
+    for Object<'_, '_, '_, T, R>
+{
+    fn eq(&self, other: &Object<U, R>) -> bool {
         self.instance == other.instance
     }
 }
 
-impl<T: Kind> Eq for Object<'_, '_, '_, T> {}
+impl<T: Kind, R: Relationship> Eq for Object<'_, '_, '_, T, R> {}
 
-impl<T: Kind> PartialEq<Instance<T>> for Object<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> PartialEq<Instance<T>> for Object<'_, '_, '_, T, R> {
     fn eq(&self, other: &Instance<T>) -> bool {
         self.instance() == *other
     }
 }
 
-impl<T: Kind> PartialEq<Object<'_, '_, '_, T>> for Instance<T> {
-    fn eq(&self, other: &Object<T>) -> bool {
+impl<T: Kind, R: Relationship> PartialEq<Object<'_, '_, '_, T, R>> for Instance<T> {
+    fn eq(&self, other: &Object<T, R>) -> bool {
         *self == other.instance()
     }
 }
 
-impl<T: Kind> PartialEq<Entity> for Object<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> PartialEq<Entity> for Object<'_, '_, '_, T, R> {
     fn eq(&self, other: &Entity) -> bool {
         self.entity() == *other
     }
 }
 
-impl<T: Kind> PartialEq<Object<'_, '_, '_, T>> for Entity {
-    fn eq(&self, other: &Object<T>) -> bool {
+impl<T: Kind, R: Relationship> PartialEq<Object<'_, '_, '_, T, R>> for Entity {
+    fn eq(&self, other: &Object<T, R>) -> bool {
         *self == other.entity()
     }
 }
 
-impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> fmt::Debug for Object<'_, '_, '_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
@@ -227,7 +238,7 @@ impl<T: Kind> fmt::Debug for Object<'_, '_, '_, T> {
     }
 }
 
-impl<T: Kind> fmt::Display for Object<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> fmt::Display for Object<'_, '_, '_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
@@ -237,23 +248,26 @@ impl<T: Kind> fmt::Display for Object<'_, '_, '_, T> {
     }
 }
 
-impl<T: Kind> ContainsInstance<T> for Object<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> ContainsInstance<T> for Object<'_, '_, '_, T, R> {
     fn instance(&self) -> Instance<T> {
         self.instance
     }
 }
 
 /// Similar to [`EntityRef`] with the benefits of [`Object<T>`].
-pub struct ObjectRef<'w, 's, 'a, T: Kind = Any>(EntityRef<'a>, Object<'w, 's, 'a, T>);
+pub struct ObjectRef<'w, 's, 'a, T: Kind = Any, R: Relationship = ChildOf>(
+    EntityRef<'a>,
+    Object<'w, 's, 'a, T, R>,
+);
 
-impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
+impl<'w, 's, 'a, T: Kind, R: Relationship> ObjectRef<'w, 's, 'a, T, R> {
     /// Creates a new [`ObjectRef<T>`] from an [`ObjectRef<Any>`].
     ///
     /// This is semantically equivalent to an unsafe downcast.
     ///
     /// # Safety
     /// Assumes `base` is of [`Kind`] `T`.
-    pub unsafe fn from_any_unchecked(base: ObjectRef<'w, 's, 'a>) -> Self {
+    pub unsafe fn from_any_unchecked(base: ObjectRef<'w, 's, 'a, Any, R>) -> Self {
         Self(base.0, Object::from_any_unchecked(base.1))
     }
 
@@ -273,53 +287,57 @@ impl<'w, 's, 'a, T: Kind> ObjectRef<'w, 's, 'a, T> {
     }
 }
 
-impl<T: Kind> Clone for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> Clone for ObjectRef<'_, '_, '_, T, R> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: Kind> Copy for ObjectRef<'_, '_, '_, T> {}
+impl<T: Kind, R: Relationship> Copy for ObjectRef<'_, '_, '_, T, R> {}
 
-impl<T: Kind> From<ObjectRef<'_, '_, '_, T>> for Entity {
-    fn from(object: ObjectRef<'_, '_, '_, T>) -> Self {
+impl<T: Kind, R: Relationship> From<ObjectRef<'_, '_, '_, T, R>> for Entity {
+    fn from(object: ObjectRef<'_, '_, '_, T, R>) -> Self {
         object.entity()
     }
 }
 
-impl<T: Kind> From<ObjectRef<'_, '_, '_, T>> for Instance<T> {
-    fn from(object: ObjectRef<'_, '_, '_, T>) -> Self {
+impl<T: Kind, R: Relationship> From<ObjectRef<'_, '_, '_, T, R>> for Instance<T> {
+    fn from(object: ObjectRef<'_, '_, '_, T, R>) -> Self {
         object.instance()
     }
 }
 
-impl<'w, 's, 'a, T: Kind> From<ObjectRef<'w, 's, 'a, T>> for Object<'w, 's, 'a, T> {
-    fn from(object: ObjectRef<'w, 's, 'a, T>) -> Self {
+impl<'w, 's, 'a, T: Kind, R: Relationship> From<ObjectRef<'w, 's, 'a, T, R>>
+    for Object<'w, 's, 'a, T, R>
+{
+    fn from(object: ObjectRef<'w, 's, 'a, T, R>) -> Self {
         object.1
     }
 }
 
-impl<'w, 's, 'a, T: Kind> From<&ObjectRef<'w, 's, 'a, T>> for Object<'w, 's, 'a, T> {
-    fn from(object: &ObjectRef<'w, 's, 'a, T>) -> Self {
+impl<'w, 's, 'a, T: Kind, R: Relationship> From<&ObjectRef<'w, 's, 'a, T, R>>
+    for Object<'w, 's, 'a, T, R>
+{
+    fn from(object: &ObjectRef<'w, 's, 'a, T, R>) -> Self {
         object.1
     }
 }
 
-impl<T: Kind> PartialEq for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> PartialEq for ObjectRef<'_, '_, '_, T, R> {
     fn eq(&self, other: &Self) -> bool {
         self.1 == other.1
     }
 }
 
-impl<T: Kind> Eq for ObjectRef<'_, '_, '_, T> {}
+impl<T: Kind, R: Relationship> Eq for ObjectRef<'_, '_, '_, T, R> {}
 
-impl<T: Kind> ContainsInstance<T> for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> ContainsInstance<T> for ObjectRef<'_, '_, '_, T, R> {
     fn instance(&self) -> Instance<T> {
         self.1.instance()
     }
 }
 
-impl<T: Component> Deref for ObjectRef<'_, '_, '_, T> {
+impl<T: Component, R: Relationship> Deref for ObjectRef<'_, '_, '_, T, R> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -327,7 +345,7 @@ impl<T: Component> Deref for ObjectRef<'_, '_, '_, T> {
     }
 }
 
-impl<T: Kind> fmt::Debug for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> fmt::Debug for ObjectRef<'_, '_, '_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
@@ -337,7 +355,7 @@ impl<T: Kind> fmt::Debug for ObjectRef<'_, '_, '_, T> {
     }
 }
 
-impl<T: Kind> fmt::Display for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> fmt::Display for ObjectRef<'_, '_, '_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
@@ -348,22 +366,24 @@ impl<T: Kind> fmt::Display for ObjectRef<'_, '_, '_, T> {
 }
 
 /// Similar to an [`ObjectRef`], but accessible via [`World`].
-pub struct ObjectWorldRef<'w, T: Kind = Any> {
+pub struct ObjectWorldRef<'w, T: Kind = Any, R: Relationship = ChildOf> {
     instance: Instance<T>,
     world: &'w World,
+    _marker: PhantomData<R>,
 }
 
-impl<'w, T: Kind> ObjectWorldRef<'w, T> {
+impl<'w, T: Kind, R: Relationship> ObjectWorldRef<'w, T, R> {
     /// Creates a new [`ObjectWorldRef<T>`] from an [`ObjectWorldRef<Any>`].
     ///
     /// This is semantically equivalent to an unsafe downcast.
     ///
     /// # Safety
     /// Assumes `object` is of [`Kind`] `T`.
-    pub unsafe fn from_any_unchecked(object: ObjectWorldRef<'w>) -> Self {
+    pub unsafe fn from_any_unchecked(object: ObjectWorldRef<'w, Any, R>) -> Self {
         Self {
             instance: object.instance.cast_into_unchecked(),
             world: object.world,
+            _marker: PhantomData,
         }
     }
 
@@ -371,13 +391,14 @@ impl<'w, T: Kind> ObjectWorldRef<'w, T> {
     /// contains the given [`Component`] `T`.
     ///
     /// This is semantically equivalent to a safe downcast.
-    pub fn from_any(object: ObjectWorldRef<'w>) -> Option<Self>
+    pub fn from_any(object: ObjectWorldRef<'w, Any, R>) -> Option<Self>
     where
         T: Component,
     {
         Some(Self {
             instance: Instance::from_entity(object.as_entity())?,
             world: object.world,
+            _marker: PhantomData,
         })
     }
 
@@ -407,65 +428,67 @@ impl<'w, T: Kind> ObjectWorldRef<'w, T> {
     }
 }
 
-impl<T: Kind> ContainsInstance<T> for ObjectWorldRef<'_, T> {
+impl<T: Kind, R: Relationship> ContainsInstance<T> for ObjectWorldRef<'_, T, R> {
     fn instance(&self) -> Instance<T> {
         self.instance
     }
 }
 
-impl<T: Kind> Clone for ObjectWorldRef<'_, T> {
+impl<T: Kind, R: Relationship> Clone for ObjectWorldRef<'_, T, R> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: Kind> Copy for ObjectWorldRef<'_, T> {}
+impl<T: Kind, R: Relationship> Copy for ObjectWorldRef<'_, T, R> {}
 
-impl<T: Kind> From<ObjectWorldRef<'_, T>> for Entity {
-    fn from(object: ObjectWorldRef<'_, T>) -> Self {
+impl<T: Kind, R: Relationship> From<ObjectWorldRef<'_, T, R>> for Entity {
+    fn from(object: ObjectWorldRef<'_, T, R>) -> Self {
         object.entity()
     }
 }
 
-impl<T: Kind> From<ObjectWorldRef<'_, T>> for Instance<T> {
-    fn from(object: ObjectWorldRef<'_, T>) -> Self {
+impl<T: Kind, R: Relationship> From<ObjectWorldRef<'_, T, R>> for Instance<T> {
+    fn from(object: ObjectWorldRef<'_, T, R>) -> Self {
         object.instance()
     }
 }
 
-impl<T: Kind, U: Kind> PartialEq<ObjectWorldRef<'_, U>> for ObjectWorldRef<'_, T> {
-    fn eq(&self, other: &ObjectWorldRef<U>) -> bool {
+impl<T: Kind, U: Kind, R: Relationship> PartialEq<ObjectWorldRef<'_, U, R>>
+    for ObjectWorldRef<'_, T, R>
+{
+    fn eq(&self, other: &ObjectWorldRef<U, R>) -> bool {
         self.instance == other.instance
     }
 }
 
-impl<T: Kind> Eq for ObjectWorldRef<'_, T> {}
+impl<T: Kind, R: Relationship> Eq for ObjectWorldRef<'_, T, R> {}
 
-impl<T: Kind> PartialEq<Instance<T>> for ObjectWorldRef<'_, T> {
+impl<T: Kind, R: Relationship> PartialEq<Instance<T>> for ObjectWorldRef<'_, T, R> {
     fn eq(&self, other: &Instance<T>) -> bool {
         self.instance() == *other
     }
 }
 
-impl<T: Kind> PartialEq<ObjectWorldRef<'_, T>> for Instance<T> {
-    fn eq(&self, other: &ObjectWorldRef<T>) -> bool {
+impl<T: Kind, R: Relationship> PartialEq<ObjectWorldRef<'_, T, R>> for Instance<T> {
+    fn eq(&self, other: &ObjectWorldRef<T, R>) -> bool {
         *self == other.instance()
     }
 }
 
-impl<T: Kind> PartialEq<Entity> for ObjectWorldRef<'_, T> {
+impl<T: Kind, R: Relationship> PartialEq<Entity> for ObjectWorldRef<'_, T, R> {
     fn eq(&self, other: &Entity) -> bool {
         self.entity() == *other
     }
 }
 
-impl<T: Kind> PartialEq<ObjectWorldRef<'_, T>> for Entity {
-    fn eq(&self, other: &ObjectWorldRef<T>) -> bool {
+impl<T: Kind, R: Relationship> PartialEq<ObjectWorldRef<'_, T, R>> for Entity {
+    fn eq(&self, other: &ObjectWorldRef<T, R>) -> bool {
         *self == other.entity()
     }
 }
 
-impl<T: Kind> fmt::Debug for ObjectWorldRef<'_, T> {
+impl<T: Kind, R: Relationship> fmt::Debug for ObjectWorldRef<'_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
@@ -475,7 +498,7 @@ impl<T: Kind> fmt::Debug for ObjectWorldRef<'_, T> {
     }
 }
 
-impl<T: Kind> fmt::Display for ObjectWorldRef<'_, T> {
+impl<T: Kind, R: Relationship> fmt::Display for ObjectWorldRef<'_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
@@ -485,7 +508,7 @@ impl<T: Kind> fmt::Display for ObjectWorldRef<'_, T> {
     }
 }
 
-impl<T: Component> Deref for ObjectWorldRef<'_, T> {
+impl<T: Component, R: Relationship> Deref for ObjectWorldRef<'_, T, R> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -512,6 +535,7 @@ impl GetObject for World {
         ObjectWorldRef {
             instance: self.entity(entity).id().into(),
             world: self,
+            _marker: PhantomData,
         }
     }
 
@@ -519,6 +543,7 @@ impl GetObject for World {
         Ok(ObjectWorldRef {
             instance: self.get_entity(entity)?.id().into(),
             world: self,
+            _marker: PhantomData,
         })
     }
 }

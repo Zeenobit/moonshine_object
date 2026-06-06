@@ -1,4 +1,7 @@
+use std::marker::PhantomData;
+
 use bevy_ecs::prelude::*;
+use bevy_ecs::relationship::Relationship;
 use moonshine_kind::{prelude::*, Any, CastInto};
 
 use crate::{Object, ObjectHierarchy, ObjectRef, ObjectWorldRef};
@@ -6,9 +9,9 @@ use crate::{Object, ObjectHierarchy, ObjectRef, ObjectWorldRef};
 /// [`Object`] methods related to rebinding and casting.
 ///
 /// These methods are available to any [`Object<T>`] or [`ObjectRef<T>`] type.
-pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
+pub trait ObjectRebind<T: Kind, R: Relationship>: ContainsInstance<T> + Sized {
     #[doc(hidden)]
-    type Rebind<U: Kind>: ObjectHierarchy<U>;
+    type Rebind<U: Kind, S: Relationship>: ObjectHierarchy<U, S>;
 
     /// Rebinds this object to an [`Instance`] of another [`Kind`].
     ///
@@ -54,7 +57,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///     println!("{:?} found! Gross!", worm);
     /// }
     /// ```
-    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U>;
+    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U, R>;
 
     /// Rebinds this object to another [`Instance`] of the same [`Kind`].
     ///
@@ -99,7 +102,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///     println!("Hello {:?}!", friend);
     /// }
     /// ```
-    unsafe fn rebind(&self, instance: Instance<T>) -> Self::Rebind<T> {
+    unsafe fn rebind(&self, instance: Instance<T>) -> Self::Rebind<T, R> {
         self.rebind_as(instance)
     }
 
@@ -112,7 +115,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// # Safety
     ///
     /// This method assumes the given entity is valid.
-    unsafe fn rebind_any(&self, entity: Entity) -> Self::Rebind<Any> {
+    unsafe fn rebind_any(&self, entity: Entity) -> Self::Rebind<Any, R> {
         self.rebind_as(Instance::from(entity))
     }
 
@@ -170,7 +173,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     ///     println!("{:?} is eaten!", fruit);
     /// }
     /// ```
-    fn cast_into<U: Kind>(self) -> Self::Rebind<U>
+    fn cast_into<U: Kind>(self) -> Self::Rebind<U, R>
     where
         T: CastInto<U>,
     {
@@ -185,7 +188,7 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// This is useful when you have an [`Object<T>`] but you want an [`Object<Any>`].
     ///
     /// All objects of any [`Kind`] can be cast into [`Object<Any>`].
-    fn cast_into_any(self) -> Self::Rebind<Any> {
+    fn cast_into_any(self) -> Self::Rebind<Any, R> {
         // SAFE: T is safely convertible to Any, and it is the same entity
         unsafe { self.rebind_as(self.instance().cast_into_any()) }
     }
@@ -200,21 +203,21 @@ pub trait ObjectRebind<T: Kind = Any>: ContainsInstance<T> + Sized {
     /// # Safety
     ///
     /// It is assumed that [`Kind`] `T` is safely convertible to `U`.
-    unsafe fn cast_into_unchecked<U: Kind>(self) -> Self::Rebind<U> {
+    unsafe fn cast_into_unchecked<U: Kind>(self) -> Self::Rebind<U, R> {
         self.rebind_as(self.instance().cast_into_unchecked())
     }
 
     /// Returns this object as an [`Object<Any>`].
-    fn as_any(&self) -> Self::Rebind<Any> {
+    fn as_any(&self) -> Self::Rebind<Any, R> {
         // SAFE: I'm valid if I'm valid.
         unsafe { self.rebind_any(self.entity()) }
     }
 }
 
-impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for Object<'w, 's, 'a, T> {
-    type Rebind<U: Kind> = Object<'w, 's, 'a, U>;
+impl<'w, 's, 'a, T: Kind, R: Relationship> ObjectRebind<T, R> for Object<'w, 's, 'a, T, R> {
+    type Rebind<U: Kind, S: Relationship> = Object<'w, 's, 'a, U, S>;
 
-    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
+    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U, R> {
         Object {
             instance,
             hierarchy: self.hierarchy,
@@ -223,21 +226,22 @@ impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for Object<'w, 's, 'a, T> {
     }
 }
 
-impl<'w, 's, 'a, T: Kind> ObjectRebind<T> for ObjectRef<'w, 's, 'a, T> {
-    type Rebind<U: Kind> = ObjectRef<'w, 's, 'a, U>;
+impl<'w, 's, 'a, T: Kind, R: Relationship> ObjectRebind<T, R> for ObjectRef<'w, 's, 'a, T, R> {
+    type Rebind<U: Kind, S: Relationship> = ObjectRef<'w, 's, 'a, U, S>;
 
-    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
+    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U, R> {
         ObjectRef(self.0, self.1.rebind_as(instance))
     }
 }
 
-impl<'w, T: Kind> ObjectRebind<T> for ObjectWorldRef<'w, T> {
-    type Rebind<U: Kind> = ObjectWorldRef<'w, U>;
+impl<'w, T: Kind, R: Relationship> ObjectRebind<T, R> for ObjectWorldRef<'w, T, R> {
+    type Rebind<U: Kind, S: Relationship> = ObjectWorldRef<'w, U, S>;
 
-    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U> {
+    unsafe fn rebind_as<U: Kind>(&self, instance: Instance<U>) -> Self::Rebind<U, R> {
         ObjectWorldRef {
             instance,
             world: self.world,
+            _marker: PhantomData,
         }
     }
 }

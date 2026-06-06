@@ -1,3 +1,4 @@
+use bevy_ecs::relationship::Relationship;
 use moonshine_kind::prelude::*;
 use moonshine_tag::Tags;
 
@@ -11,7 +12,7 @@ pub trait ObjectTags {
     fn tags(&self) -> &Tags;
 }
 
-impl<T: Kind> ObjectTags for Object<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> ObjectTags for Object<'_, '_, '_, T, R> {
     fn tags(&self) -> &Tags {
         self.nametags
             .get(self.entity())
@@ -21,13 +22,13 @@ impl<T: Kind> ObjectTags for Object<'_, '_, '_, T> {
     }
 }
 
-impl<T: Kind> ObjectTags for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> ObjectTags for ObjectRef<'_, '_, '_, T, R> {
     fn tags(&self) -> &Tags {
         self.1.tags()
     }
 }
 
-impl<T: Kind> ObjectTags for ObjectWorldRef<'_, T> {
+impl<T: Kind, R: Relationship> ObjectTags for ObjectWorldRef<'_, T, R> {
     fn tags(&self) -> &Tags {
         self.world
             .get(self.entity())

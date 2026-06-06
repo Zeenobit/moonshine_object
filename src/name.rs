@@ -1,4 +1,5 @@
 use bevy_ecs::name::Name;
+use bevy_ecs::relationship::Relationship;
 use moonshine_kind::prelude::*;
 
 use crate::{Object, ObjectRef, ObjectWorldRef};
@@ -31,7 +32,7 @@ pub trait ObjectName {
     fn name(&self) -> Option<&str>;
 }
 
-impl<T: Kind> ObjectName for Object<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> ObjectName for Object<'_, '_, '_, T, R> {
     fn name(&self) -> Option<&str> {
         self.nametags
             .get(self.entity())
@@ -40,13 +41,13 @@ impl<T: Kind> ObjectName for Object<'_, '_, '_, T> {
     }
 }
 
-impl<T: Kind> ObjectName for ObjectRef<'_, '_, '_, T> {
+impl<T: Kind, R: Relationship> ObjectName for ObjectRef<'_, '_, '_, T, R> {
     fn name(&self) -> Option<&str> {
         self.1.name()
     }
 }
 
-impl<T: Kind> ObjectName for ObjectWorldRef<'_, T> {
+impl<T: Kind, R: Relationship> ObjectName for ObjectWorldRef<'_, T, R> {
     fn name(&self) -> Option<&str> {
         self.world
             .get::<Name>(self.entity())
