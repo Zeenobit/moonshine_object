@@ -231,9 +231,9 @@ impl<T: Kind, R: Relationship> PartialEq<Object<'_, '_, '_, T, R>> for Entity {
 impl<T: Kind, R: Relationship> fmt::Debug for Object<'_, '_, '_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
-            write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
+            write!(f, "{}({:?}, \"{}\")", T::debug_name(), self.entity(), name)
         } else {
-            write!(f, "{}({:?})", &T::debug_name(), self.entity())
+            write!(f, "{}({:?})", T::debug_name(), self.entity())
         }
     }
 }
@@ -241,9 +241,9 @@ impl<T: Kind, R: Relationship> fmt::Debug for Object<'_, '_, '_, T, R> {
 impl<T: Kind, R: Relationship> fmt::Display for Object<'_, '_, '_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
-            write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
+            write!(f, "{}({}, \"{}\")", T::debug_name(), self.entity(), name)
         } else {
-            write!(f, "{}({})", &T::debug_name(), self.entity())
+            write!(f, "{}({})", T::debug_name(), self.entity())
         }
     }
 }
@@ -348,9 +348,9 @@ impl<T: Component, R: Relationship> Deref for ObjectRef<'_, '_, '_, T, R> {
 impl<T: Kind, R: Relationship> fmt::Debug for ObjectRef<'_, '_, '_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
-            write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
+            write!(f, "{}({:?}, \"{}\")", T::debug_name(), self.entity(), name)
         } else {
-            write!(f, "{}({:?})", &T::debug_name(), self.entity())
+            write!(f, "{}({:?})", T::debug_name(), self.entity())
         }
     }
 }
@@ -358,9 +358,9 @@ impl<T: Kind, R: Relationship> fmt::Debug for ObjectRef<'_, '_, '_, T, R> {
 impl<T: Kind, R: Relationship> fmt::Display for ObjectRef<'_, '_, '_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
-            write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
+            write!(f, "{}({}, \"{}\")", T::debug_name(), self.entity(), name)
         } else {
-            write!(f, "{}({})", &T::debug_name(), self.entity())
+            write!(f, "{}({})", T::debug_name(), self.entity())
         }
     }
 }
@@ -491,9 +491,9 @@ impl<T: Kind, R: Relationship> PartialEq<ObjectWorldRef<'_, T, R>> for Entity {
 impl<T: Kind, R: Relationship> fmt::Debug for ObjectWorldRef<'_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
-            write!(f, "{}({:?}, \"{}\")", &T::debug_name(), self.entity(), name)
+            write!(f, "{}({:?}, \"{}\")", T::debug_name(), self.entity(), name)
         } else {
-            write!(f, "{}({:?})", &T::debug_name(), self.entity())
+            write!(f, "{}({:?})", T::debug_name(), self.entity())
         }
     }
 }
@@ -501,9 +501,9 @@ impl<T: Kind, R: Relationship> fmt::Debug for ObjectWorldRef<'_, T, R> {
 impl<T: Kind, R: Relationship> fmt::Display for ObjectWorldRef<'_, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
-            write!(f, "{}({}, \"{}\")", &T::debug_name(), self.entity(), name)
+            write!(f, "{}({}, \"{}\")", T::debug_name(), self.entity(), name)
         } else {
-            write!(f, "{}({})", &T::debug_name(), self.entity())
+            write!(f, "{}({})", T::debug_name(), self.entity())
         }
     }
 }
